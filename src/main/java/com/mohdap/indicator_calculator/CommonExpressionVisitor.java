@@ -35,92 +35,82 @@ public class CommonExpressionVisitor extends AntlrExpressionVisitor {
             if (ctx.it.getType() == PAREN) { //parenthesis
                 Object value = visit(ctx.expr(0));
 
-                try {
-                    return (double) value;
-                } catch (ClassCastException ex) {
-                    return (Integer) value;
-                }
+                return Double.parseDouble(value.toString());
             }
 
             if (ctx.it.getType() == MINUS) { //minus
 
                 Object left = visit(ctx.expr(0));  // get value of left subexpression
-                Object right = visit(ctx.expr(1)); // get value of right subexpression
-                System.out.println("Minus " + left.toString() + " and " + right.toString());
-                try {
-                    return (double) left - (double) right;
-                } catch (ClassCastException ex) {
-                    return (Integer) left - (Integer) right;
+                Object right = 0;
+                if (ctx.expr().size() > 1) {
+                    right = visit(ctx.expr(1)); // get value of right subexpression
                 }
+                System.out.println("Minus " + left.toString() + " and " + right.toString());
+
+                return Double.parseDouble(left.toString()) - Double.parseDouble(right.toString());
 
             }
 
             if (ctx.it.getType() == PLUS) { //plus
-                System.out.println("Plus " + ctx.expr(0).getText() + " and " + ctx.expr(1).getText());
+                System.out.println("Plus " + ctx.getText());
                 Object left = visit(ctx.expr(0));  // get value of left subexpression
-                Object right = visit(ctx.expr(1)); // get value of right subexpression
-                //System.out.println("Plus " + left.toString() + " and " + right.toString());
+                Object right = 0;
+                if (ctx.expr().size() > 1) {
+                    right = visit(ctx.expr(1)); // get value of right subexpression
+                }                //System.out.println("Plus " + left.toString() + " and " + right.toString());
 
-                try {
-                    return (double) left + (double) right;
-                } catch (ClassCastException ex) {
-                    return (Integer) left + (Integer) right;
-                }
+                return Double.parseDouble(left.toString()) + Double.parseDouble(right.toString());
 
             }
 
             if (ctx.it.getType() == POWER) { //power
 
                 Object left = visit(ctx.expr(0));  // get value of left subexpression
-                Object right = visit(ctx.expr(1)); // get value of right subexpression
+                Object right = 0;
+                if (ctx.expr().size() > 1) {
+                    right = visit(ctx.expr(1)); // get value of right subexpression
+                }
+
                 System.out.println("Power " + left.toString() + " and " + right.toString());
 
-                try {
-                    return Math.pow((double) left, (double) right);
-                } catch (ClassCastException ex) {
-                    return Math.pow((Integer) left, (Integer) right);
-                }
+                return Math.pow(Double.parseDouble(left.toString()), Double.parseDouble(right.toString()));
 
             }
 
             if (ctx.it.getType() == DIV) { //division
 
                 Object left = visit(ctx.expr(0));  // get value of left subexpression
-                Object right = visit(ctx.expr(1)); // get value of right subexpression
-                System.out.println("division " + left.toString() + " and " + right.toString());
-
-                try {
-                    return (double) left / (double) right;
-                } catch (ClassCastException ex) {
-                    return (Integer) left / (Integer) right;
+                Object right = 0;
+                if (ctx.expr().size() > 1) {
+                    right = visit(ctx.expr(1)); // get value of right subexpression
                 }
+
+                return Double.parseDouble(left.toString()) / Double.parseDouble(right.toString());
             }
 
             if (ctx.it.getType() == MOD) { //modulus
 
                 Object left = visit(ctx.expr(0));  // get value of left subexpression
-                Object right = visit(ctx.expr(1)); // get value of right subexpression
+                Object right = 0;
+                if (ctx.expr().size() > 1) {
+                    right = visit(ctx.expr(1)); // get value of right subexpression
+                }
                 System.out.println("modulus " + left.toString() + " and " + right.toString());
 
-                try {
-                    return (double) left % (double) right;
-                } catch (ClassCastException ex) {
-                    return (Integer) left % (Integer) right;
-                }
+                return Double.parseDouble(left.toString()) % Double.parseDouble(right.toString());
 
             }
 
             if (ctx.it.getType() == MUL) { //MULtiplication
 
                 Object left = visit(ctx.expr(0));  // get value of left subexpression
-                Object right = visit(ctx.expr(1)); // get value of right subexpression
+                Object right = 0;
+                if (ctx.expr().size() > 1) {
+                    right = visit(ctx.expr(1)); // get value of right subexpression
+                }
                 System.out.println("MULtiplication " + left.toString() + " and " + right.toString());
 
-                try {
-                    return (double) left * (double) right;
-                } catch (ClassCastException ex) {
-                    return (Integer) left * (Integer) right;
-                }
+                return Double.parseDouble(left.toString()) * Double.parseDouble(right.toString());
 
             }
 
@@ -142,20 +132,20 @@ public class CommonExpressionVisitor extends AntlrExpressionVisitor {
                 }
 
                 Aggregator agg = new Aggregator();
-                double aggregatedValue = agg.aggregateValuesDataElements(ctx.uid0.getText(), comboId, period, orgunit);
+                Double aggregatedValue = agg.aggregateValuesDataElements(ctx.uid0.getText(), comboId, period, orgunit);
 
                 return aggregatedValue;
 
             } else if (ctx.numericLiteral() != null) {
 
-                double val = BigDecimal.valueOf(castDouble(ctx.numericLiteral().getText()))
+                Double val = BigDecimal.valueOf(castDouble(ctx.numericLiteral().getText()))
                         .doubleValue();
                 return val;
             }
 
         } else {
             if (ctx.numericLiteral() != null) {
-                double val = BigDecimal.valueOf(castDouble(ctx.numericLiteral().getText()))
+                Double val = BigDecimal.valueOf(castDouble(ctx.numericLiteral().getText()))
                         .doubleValue();
                 return val;
             };
