@@ -1,12 +1,9 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
 import com.mohdap.indicator_calculator.OrgLevel;
+import com.mohdap.indicator_calculator.OrgUnit;
+import com.mohdap.indicator_calculator.Period;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -23,111 +20,39 @@ public class Aggregator {
     final static org.apache.log4j.Logger log
             = org.apache.log4j.Logger.getLogger(Aggregator.class.getCanonicalName());
 
-    String aggregatorSql = "select SUM(CAST(dt.value AS integer)) as val from datavalue dt \n"
+    String aggregatorSql = "select SUM(CAST (dt.value AS double precision)) as val from datavalue dt \n"
             + "inner join period pe on  dt.periodid=pe.periodid\n"
             + "inner join organisationunit orgunit on dt.sourceid=orgunit.organisationunitid\n"
             + "inner join dataelement de on dt.dataelementid=de.dataelementid\n"
             + "inner join categoryoptioncombo comb on comb.categoryoptioncomboid  = dt.categoryoptioncomboid \n"
-            + "where  ";
+            + "where de.aggregationtype='SUM' and de.valuetype in ('NUMBER','INTEGER') ";
 
-    private void aggregateValuesByOrgUnit(String elementId, String comboId, int orgId) {
+    public double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
         String conditionClause = null;
         if (comboId != null) {
             conditionClause = "(de.uid='" + elementId + "' and comb.uid ='" + comboId + "')";
         } else {
             conditionClause = "(de.uid='" + elementId + "')";
         }
-        aggregatorSql = aggregatorSql + conditionClause;
+        aggregatorSql = aggregatorSql + " and " + conditionClause + " and  pe.periodid=" + period.getId();
 
-        OrgLevel orgunitLevel = getOrgUnitLevel(orgId);
-        appendOruntiSqlClause(orgunitLevel, orgId);
+        OrgLevel orgunitLevel = orgunit.getHierarchylevel();
+        appendOruntiSqlClause(orgunitLevel, orgunit.getId());
+        aggregatorSql = aggregatorSql;
 
-    }
-
-    private void appendOruntiSqlClause(OrgLevel orgunitLevel, int orgId) {
-        List<Integer> orgUnitIds = getOrgunitsIdsToAggregate(orgunitLevel, orgId);
-
-    }
-
-    private List<Integer> getOrgunitsIdsToAggregate(OrgLevel orgunitLevel, int orgId) {
-        String getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "'";
-
-        switch (orgunitLevel) { // get all orunit ids for which we will aggregate the data elements based on the orgunit we are aggregating.
-            case LEVEL_4:
-                getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "' \n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in('" + orgId + "')";
-                break;
-            case LEVEL_3:
-                getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "' \n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in('" + orgId + "')\n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "'))";
-                break;
-            case LEVEL_2:
-                getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "' \n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in('" + orgId + "')\n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "'))\n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in\n"
-                        + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "')))";
-            case LEVEL_1:
-                getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "' \n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in('" + orgId + "')\n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "'))\n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in\n"
-                        + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "')))\n"
-                        + "union\n"
-                        + "select organisationunitid from organisationunit where parentid in(\n"
-                        + "  select organisationunitid from organisationunit where parentid in\n"
-                        + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "')))\n"
-                        + ")";
-        }
-
-        Connection dbCon;
-        List<Integer> orgIds = new ArrayList<Integer>();
         PreparedStatement ps = null;
         ResultSet rs = null;
         Connection conn = null;
-        try {
-            dbCon = DatabaseSource.getConnection();
-            ps = dbCon.prepareStatement(getAllOrgids);
-            rs = ps.executeQuery();
-
-            while (rs.next()) {
-                orgIds.add(rs.getInt(1));
-            }
-
-        } catch (SQLException ex) {
-            log.error(ex);
-        } finally {
-            DatabaseSource.close(rs);
-            DatabaseSource.close(ps);
-            DatabaseSource.close(conn);
-        }
-        return orgIds;
-    }
-
-    private OrgLevel getOrgUnitLevel(int orgId) {
-
-        int orgLevel = 1; //Kenya
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        Connection conn = null;
+        double calculatedValue = 0;
+        System.out.println(aggregatorSql);
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "Select hierarchylevel from organisationunit where organisationunitid= " + orgId;
-            ps = conn.prepareStatement(sql);
+
+            ps = conn.prepareStatement(aggregatorSql);
             rs = ps.executeQuery();
 
             if (rs.next()) {
-                orgLevel = rs.getInt(1);
+                calculatedValue = rs.getDouble(1);
             }
 
         } catch (SQLException ex) {
@@ -137,22 +62,50 @@ public class Aggregator {
             DatabaseSource.close(ps);
             DatabaseSource.close(conn);
         }
+        return calculatedValue;
+    }
 
-        switch (orgLevel) {
-            case 1:
-                return OrgLevel.LEVEL_1;
-            case 2:
-                return OrgLevel.LEVEL_2;
-            case 3:
-                return OrgLevel.LEVEL_3;
-            case 4:
-                return OrgLevel.LEVEL_4;
-            case 5:
-                return OrgLevel.LEVEL_5;
+    private void appendOruntiSqlClause(OrgLevel orgunitLevel, int orgId) {
+        String orgUnitIdsSql = getOrgunitsIdsToAggregate(orgunitLevel, orgId);
+        aggregatorSql = aggregatorSql + " and orgunit.organisationunitid in(" + orgUnitIdsSql + ")";
+    }
+
+    private String getOrgunitsIdsToAggregate(OrgLevel orgunitLevel, int orgId) {
+        String getAllOrgids = "";
+
+        switch (orgunitLevel) { // get all orunit ids for which we will aggregate the data elements based on the orgunit we are aggregating.
+            case LEVEL_4:
+                log.debug("org level: ============> 4");
+                getAllOrgids = "select organisationunitid from organisationunit where parentid in('" + orgId + "')";
+                //  log.info(getAllOrgids);
+                break;
+            case LEVEL_3:
+                log.debug("org level: ============> 3");
+                getAllOrgids = "select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "'))";
+                //  log.info(getAllOrgids);
+                break;
+            case LEVEL_2:
+                log.debug("org level: ============> 2");
+                getAllOrgids = "select organisationunitid from organisationunit where parentid in\n"
+                        + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "')))";
+                //log.info(getAllOrgids);
+                break;
+            case LEVEL_1:
+                log.debug("org level: ============> 1");
+
+                getAllOrgids = "select organisationunitid from organisationunit where parentid in(\n"
+                        + "  select organisationunitid from organisationunit where parentid in\n"
+                        + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid "
+                        + "from organisationunit where parentid in('" + orgId + "')))\n"
+                        + ")";
+                // log.info(getAllOrgids);
+                break;
             default:
-                return OrgLevel.LEVEL_1;
-        }
+                getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "'";
+                break;
 
+        }
+        return getAllOrgids;
     }
 
 }
