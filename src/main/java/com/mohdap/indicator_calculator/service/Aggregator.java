@@ -35,7 +35,7 @@ public class Aggregator {
             + "inner join categoryoptioncombo comb on comb.categoryoptioncomboid  = dt.categoryoptioncomboid \n"
             + "where de.aggregationtype='SUM' and de.valuetype in ('NUMBER','INTEGER') ";
 
-    public double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
+    public Double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
 
         String cacheValueName = elementId + "" + comboId + "" + period.getId() + "" + orgunit.getId();
         Double value = aggregateValues.get(cacheValueName);
@@ -60,7 +60,6 @@ public class Aggregator {
         ResultSet rs = null;
         Connection conn = null;
         double calculatedValue = 0;
-        System.out.println(aggregatorSql);
         try {
             conn = DatabaseSource.getConnection();
 
@@ -93,30 +92,22 @@ public class Aggregator {
 
         switch (orgunitLevel) { // get all orunit ids for which we will aggregate the data elements based on the orgunit we are aggregating.
             case LEVEL_4:
-                log.debug("org level: ============> 4");
                 getAllOrgids = "select organisationunitid from organisationunit where parentid in('" + orgId + "')";
-                //  log.info(getAllOrgids);
                 break;
             case LEVEL_3:
-                log.debug("org level: ============> 3");
                 getAllOrgids = "select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "'))";
-                //  log.info(getAllOrgids);
                 break;
             case LEVEL_2:
-                log.debug("org level: ============> 2");
                 getAllOrgids = "select organisationunitid from organisationunit where parentid in\n"
                         + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid from organisationunit where parentid in('" + orgId + "')))";
-                //log.info(getAllOrgids);
                 break;
             case LEVEL_1:
-                log.debug("org level: ============> 1");
 
                 getAllOrgids = "select organisationunitid from organisationunit where parentid in(\n"
                         + "  select organisationunitid from organisationunit where parentid in\n"
                         + "  (select organisationunitid from organisationunit where parentid in(select organisationunitid "
                         + "from organisationunit where parentid in('" + orgId + "')))\n"
                         + ")";
-                // log.info(getAllOrgids);
                 break;
             default:
                 getAllOrgids = "select organisationunitid from organisationunit where organisationunitid='" + orgId + "'";
