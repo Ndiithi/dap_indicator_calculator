@@ -10,6 +10,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import org.cache2k.Cache;
+import org.cache2k.Cache2kBuilder;
 
 /**
  *
@@ -20,6 +22,12 @@ public class Aggregator {
     final static org.apache.log4j.Logger log
             = org.apache.log4j.Logger.getLogger(Aggregator.class.getCanonicalName());
 
+    private static Cache<String, Double> aggregateValues;
+
+    static {
+        aggregateValues = Cache2kBuilder.of(String.class, Double.class).name("aggregate").eternal(true).entryCapacity(4000000).build();
+    }
+
     String aggregatorSql = "select SUM(CAST (dt.value AS double precision)) as val from datavalue dt \n"
             + "inner join period pe on  dt.periodid=pe.periodid\n"
             + "inner join organisationunit orgunit on dt.sourceid=orgunit.organisationunitid\n"
@@ -28,6 +36,14 @@ public class Aggregator {
             + "where de.aggregationtype='SUM' and de.valuetype in ('NUMBER','INTEGER') ";
 
     public double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
+
+        String cacheValueName = elementId + "" + comboId + "" + period.getId() + "" + orgunit.getId();
+        Double value = aggregateValues.get(cacheValueName);
+
+        if (value != null) {
+            return value;
+        }
+
         String conditionClause = null;
         if (comboId != null) {
             conditionClause = "(de.uid='" + elementId + "' and comb.uid ='" + comboId + "')";
@@ -62,11 +78,13 @@ public class Aggregator {
             DatabaseSource.close(ps);
             DatabaseSource.close(conn);
         }
+        aggregateValues.put(cacheValueName, calculatedValue);
         return calculatedValue;
     }
 
     private void appendOruntiSqlClause(OrgLevel orgunitLevel, int orgId) {
         String orgUnitIdsSql = getOrgunitsIdsToAggregate(orgunitLevel, orgId);
+
         aggregatorSql = aggregatorSql + " and orgunit.organisationunitid in(" + orgUnitIdsSql + ")";
     }
 
