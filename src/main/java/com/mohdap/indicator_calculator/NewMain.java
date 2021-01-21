@@ -42,8 +42,16 @@ public class NewMain {
         List<Period> periods = NewMain.getAllPeriods();
         List<List> resultListing = new ArrayList();
         for (Indicator indicator : indicators) {
-            log.info("numerator to evaluate ===> " + indicator.getNumerator().trim().replaceAll("\\s+", ""));
-            log.info("Denominator to evaluate ===> " + indicator.getDenominator().trim().replaceAll("\\s+", ""));
+            log.info("indicator name ===> " + indicator.getName());
+            log.info("numerator to evaluate ===> " + indicator.getNumerator());
+            log.info("Denominator to evaluate ===> " + indicator.getDenominator());
+            if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
+                continue;
+            }
+            if (indicator.getNumerator().length() == 0 || indicator.getDenominator().length() == 0) {
+                continue;
+            }
+
             for (OrgUnit orgunit : orgunits) {
                 for (Period period : periods) {
                     Object numeratorResult = Parser.visit(indicator.getNumerator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgunit));
@@ -61,25 +69,32 @@ public class NewMain {
                     reslt.add(period.getStartDate());
                     reslt.add(period.getEndDate());
                     try {
+                        log.info("numerator value: ====>> " + numeratorResult.toString());
+                        log.info("denomenator value: ====>> " + denomeratorResult.toString());
+                        if (numeratorResult.toString().contains("Infinity")
+                                || denomeratorResult.toString().contains("Infinity")
+                                || numeratorResult.toString().contains("NaN")
+                                || denomeratorResult.toString().contains("NaN")) {
+                            continue;
+                        }
+                        Double num = BigDecimal.valueOf(castDouble(numeratorResult.toString()))
+                                .doubleValue();
+                        Double denom = BigDecimal.valueOf(castDouble(denomeratorResult.toString()))
+                                .doubleValue();
 
-                        double num = BigDecimal.valueOf(castDouble(numeratorResult.toString()))
-                                .doubleValue();
-                        double denom = BigDecimal.valueOf(castDouble(denomeratorResult.toString()))
-                                .doubleValue();
-                        log.info("numerator value: ====>> " + num);
                         log.info("denomenator value: ====>> " + BigDecimal.valueOf(castDouble(denomeratorResult.toString())));
                         log.info("factor value: ====>> " + indicator.getFactor());
-                        double results = (num / denom) * indicator.getFactor();
+                        Double results = (num / denom) * indicator.getFactor();
 
                         log.info("results value: ====>> " + results);
                         if (indicator.getIndicatorType() == IndicatorType.NUMBER) {
-                            
+
                             if (results == Double.POSITIVE_INFINITY || results == Double.NEGATIVE_INFINITY) {
                                 reslt.add(0.0);
                             } else {
-                                reslt.add((int) results);
+                                reslt.add(results.intValue());
                             }
-                            
+
                         } else {
                             reslt.add(results);
                         }
@@ -130,8 +145,8 @@ public class NewMain {
         List<Period> periods = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period  where startdate >'2017-12-31'"
-                    + " and startdate <'2019-01-01' and periodtypeid =5";
+            String sql = "SELECT periodid, startdate, enddate FROM period";//  where startdate >'2018-12-31'"
+            //   + " and startdate <'2019-02-01' and periodtypeid =5";// 5 -- monthly
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
@@ -164,7 +179,7 @@ public class NewMain {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
                     + " indicator indc\n"
-                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid where indicatorid=43298";
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid";// where indicatorid=32966";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
