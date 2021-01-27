@@ -2,17 +2,29 @@ package com.healthit.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
 import com.healthit.mohdap.indicator_calculator.AggregationType;
+import com.healthit.mohdap.indicator_calculator.Entry;
+import com.healthit.mohdap.indicator_calculator.Indicator;
+import com.healthit.mohdap.indicator_calculator.IndicatorType;
 import com.healthit.mohdap.indicator_calculator.OrgLevel;
 import com.healthit.mohdap.indicator_calculator.OrgUnit;
 import com.healthit.mohdap.indicator_calculator.Period;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.cache2k.Cache;
 import org.cache2k.Cache2kBuilder;
+import static org.hisp.dhis.antlr.AntlrParserUtils.castDouble;
+import org.hisp.dhis.antlr.Parser;
 
 /**
  *
@@ -34,10 +46,18 @@ public class Aggregator {
             + "inner join organisationunit orgunit on dt.sourceid=orgunit.organisationunitid\n"
             + "inner join dataelement de on dt.dataelementid=de.dataelementid\n"
             + "inner join categoryoptioncombo comb on comb.categoryoptioncomboid  = dt.categoryoptioncomboid where ";
-         //   + "where de.valuetype in ('NUMBER','INTEGER') ";
+    //   + "where de.valuetype in ('NUMBER','INTEGER') ";
 
     private String aggregationTypeSql = "Select aggregationtype from dataelement where uid=?";
 
+    /**
+     *
+     * @param elementId
+     * @param comboId
+     * @param period
+     * @param orgunit
+     * @return
+     */
     public Double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
 
         String cacheValueName = elementId + "" + comboId + "" + period.getId() + "" + orgunit.getId();
@@ -54,7 +74,7 @@ public class Aggregator {
         }
         appendDataelementAggregationType(elementId);
 
-        aggregatorSql = aggregatorSql  + conditionClause + " and  pe.periodid=" + period.getId();
+        aggregatorSql = aggregatorSql + conditionClause + " and  pe.periodid=" + period.getId();
 
         OrgLevel orgunitLevel = orgunit.getHierarchylevel();
         appendOruntiSqlClause(orgunitLevel, orgunit.getId());
@@ -85,6 +105,10 @@ public class Aggregator {
         return calculatedValue;
     }
 
+    /**
+     *
+     * @param elementId
+     */
     private void appendDataelementAggregationType(String elementId) {
 
         PreparedStatement ps = null;
@@ -128,6 +152,12 @@ public class Aggregator {
         aggregatorSql = aggregatorSql + " and orgunit.organisationunitid in(" + orgUnitIdsSql + ")";
     }
 
+    /**
+     *
+     * @param orgunitLevel
+     * @param orgId
+     * @return
+     */
     private String getOrgunitsIdsToAggregate(OrgLevel orgunitLevel, int orgId) {
         String getAllOrgids = "";
 
@@ -156,6 +186,346 @@ public class Aggregator {
 
         }
         return getAllOrgids;
+    }
+
+    private static Indicator extractIndicatorFromResultSet(ResultSet rs) throws SQLException {
+        Indicator indicator = new Indicator();
+        indicator.setId(rs.getInt("indicatorid"));
+        indicator.setName(rs.getString("name"));
+        indicator.setFactor(rs.getInt("factor"));
+        indicator.setUuid(rs.getString("uid"));
+        indicator.setNumerator(rs.getString("numerator"));
+        indicator.setDenominator(rs.getString("denominator"));
+        String typeName = rs.getString("type_name");
+        if (typeName.equals("Percentage")) {
+            indicator.setIndicatorType(IndicatorType.PERCENTAGE);
+        } else if (typeName.equals("Per 1000")) {
+            indicator.setIndicatorType(IndicatorType.PER_1000);
+        } else if (typeName.equals("Per 100 000")) {
+            indicator.setIndicatorType(IndicatorType.PER_100000);
+        } else if (typeName.equals("Rate (factor=1)")) {
+            indicator.setIndicatorType(IndicatorType.RATE_1);
+        } else if (typeName.equals("Per 10 000")) {
+            indicator.setIndicatorType(IndicatorType.PER_10000);
+        } else if (typeName.equals("Per 5 000")) {
+            indicator.setIndicatorType(IndicatorType.PER_5000);
+        } else if (typeName.equals("Number")) {
+            indicator.setIndicatorType(IndicatorType.NUMBER);
+        }
+        return indicator;
+    }
+
+    /**
+     *
+     * @param rs
+     * @return
+     */
+    private static List<Indicator> formatIndicators(ResultSet rs) {
+
+        List<Indicator> indicators = new ArrayList();
+        try {
+
+            while (rs.next()) {
+
+                indicators.add(extractIndicatorFromResultSet(rs));
+            }
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        }
+
+        return indicators;
+
+    }
+
+    /**
+     *
+     * @param rs
+     * @return
+     */
+    private static Map<String, Indicator> formatIndicatorsMap(ResultSet rs) {
+
+        Map<String, Indicator> result = new HashMap();
+        try {
+            while (rs.next()) {
+                String indicname = rs.getString("name");
+                result.put(indicname, extractIndicatorFromResultSet(rs));
+
+            }
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        }
+
+        return result;
+
+    }
+
+    private static List<Indicator> getAllIndicators() {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        List<Indicator> indicators = null;
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
+                    + " indicator indc\n"
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid"; //where indicatorid=95445";
+            ps = conn.prepareStatement(sql);
+            rs = ps.executeQuery();
+            indicators = formatIndicators(rs);
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return indicators;
+    }
+
+    private static Map<String, Indicator> getIndicatorsByName(List<String> indicatorsNames) {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        Map<String, Indicator> indicators = null;
+        StringBuilder indicatorNms = new StringBuilder();
+        boolean added = false;
+        for (String indicatorName : indicatorsNames) {
+            if (added) {
+                indicatorNms.append("," + "'" + indicatorName + "'");
+            } else {
+                indicatorNms.append(indicatorName);
+                added = true;
+            }
+        }
+
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
+                    + " indicator indc\n"
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where indc.name in (?)";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, indicatorNms.toString());
+            rs = ps.executeQuery();
+
+            indicators = formatIndicatorsMap(rs);
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return indicators;
+    }
+
+    private static List<OrgUnit> getAllOrgUnits() {
+
+        int orgLevel = 1; //Kenya
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        List<OrgUnit> orgunits = new ArrayList();
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where organisationunitid=23408";
+            ps = conn.prepareStatement(sql);
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                    OrgUnit orgUnit = new OrgUnit();
+                    orgUnit.setId(rs.getInt("organisationunitid"));
+                    orgUnit.setName(rs.getString("name"));
+                    orgUnit.setParentId(rs.getInt("parentid"));
+                    orgUnit.setUuid(rs.getString("uid"));
+
+                    switch (rs.getInt("hierarchylevel")) {
+                        case 1:
+                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_1);
+                            break;
+                        case 2:
+                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_2);
+                            break;
+                        case 3:
+                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_3);
+                            break;
+                        case 4:
+                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_4);
+                            break;
+                        case 5:
+                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_5);
+                            break;
+                        default:
+                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_1);
+                            break;
+                    }
+                    orgunits.add(orgUnit);
+                }
+
+            }
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return orgunits;
+
+    }
+
+    /**
+     *
+     * @param resultListing
+     */
+    private static void saveResultsToCsvFile(List<List> resultListing) {
+
+        FileWriter out = null;
+        String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value"};
+        try {
+            out = new FileWriter("calculated_indicators.csv");
+
+            try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
+                    .withHeader(HEADERS))) {
+                for (List rslt : resultListing) {
+                    printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
+                }
+
+            }
+
+        } catch (IOException ex) {
+            log.error(ex);
+        } finally {
+            try {
+                out.close();
+            } catch (IOException ex) {
+                log.error(ex);
+            }
+        }
+    }
+
+    /**
+     *
+     */
+    public static void processAllIndicators() {
+        System.out.println("Processing begins... ");
+
+        List<Indicator> indicators = Aggregator.getAllIndicators();
+        List<OrgUnit> orgunits = Aggregator.getAllOrgUnits();
+        List<Period> periods = Aggregator.getAllPeriods();
+        List<List> resultListing = new ArrayList();
+        for (Indicator indicator : indicators) {
+            log.info("indicator name ===> " + indicator.getName());
+            log.info("numerator to evaluate ===> " + indicator.getNumerator());
+            log.info("Denominator to evaluate ===> " + indicator.getDenominator());
+            if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
+                continue;
+            }
+            if (indicator.getNumerator().length() == 0 || indicator.getDenominator().length() == 0) {
+                continue;
+            }
+
+            for (OrgUnit orgunit : orgunits) {
+                for (Period period : periods) {
+                    Object numeratorResult = Parser.visit(indicator.getNumerator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgunit));
+
+                    Object denomeratorResult = Parser.visit(indicator.getDenominator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgunit));
+
+                    if (numeratorResult == null || denomeratorResult == null) {
+                        continue;
+                    }
+
+                    log.info("period: ====>> " + period.getStartDate());
+
+                    List reslt = new ArrayList();
+                    reslt.add(indicator.getName());
+                    reslt.add(period.getStartDate());
+                    reslt.add(period.getEndDate());
+                    try {
+                        log.info("numerator value: ====>> " + numeratorResult.toString());
+                        log.info("denomenator value: ====>> " + denomeratorResult.toString());
+                        if (numeratorResult.toString().contains("Infinity")
+                                || denomeratorResult.toString().contains("Infinity")
+                                || numeratorResult.toString().contains("NaN")
+                                || denomeratorResult.toString().contains("NaN")) {
+                            continue;
+                        }
+                        Double num = BigDecimal.valueOf(castDouble(numeratorResult.toString()))
+                                .doubleValue();
+                        Double denom = BigDecimal.valueOf(castDouble(denomeratorResult.toString()))
+                                .doubleValue();
+
+                        log.info("denomenator value: ====>> " + BigDecimal.valueOf(castDouble(denomeratorResult.toString())));
+                        log.info("factor value: ====>> " + indicator.getFactor());
+                        Double results = (num / denom) * indicator.getFactor();
+
+                        log.info("results value: ====>> " + results);
+                        if (indicator.getIndicatorType() == IndicatorType.NUMBER) {
+
+                            if (results == Double.POSITIVE_INFINITY || results == Double.NEGATIVE_INFINITY) {
+                                reslt.add(0.0);
+                            } else {
+                                reslt.add(results.intValue());
+                            }
+
+                        } else {
+                            reslt.add(results);
+                        }
+
+                    } catch (ArithmeticException ex) {
+                        continue;
+                    }
+
+                    resultListing.add(reslt);
+                }
+            }
+        }
+        Aggregator.saveResultsToCsvFile(resultListing);
+
+    }
+
+    private static List<Period> getAllPeriods() {
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        List<Period> periods = new ArrayList();
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT periodid, startdate, enddate FROM period  where startdate >'2017-12-31'"
+                    + " and startdate <'2018-02-01' and periodtypeid =5";// 5 -- monthly
+            ps = conn.prepareStatement(sql);
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Period period = new Period();
+                period.setId(rs.getInt("periodid"));
+                period.setStartDate(rs.getDate("startdate"));
+                period.setEndDate(rs.getDate("enddate"));
+                periods.add(period);
+            }
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return periods;
+
+    }
+
+    public static void processByOrgUnit(List<List> indicatorsToProcess, String outputFilePath) {
+
+    }
+
+    public static void processByOrgLevel(List<List> indicatorsToProcess, String outputFilePath) {
+
     }
 
 }
