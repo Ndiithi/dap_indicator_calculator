@@ -1,10 +1,10 @@
-package com.mohdap.indicator_calculator.service;
+package com.healthit.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
-import com.mohdap.indicator_calculator.AggregationType;
-import com.mohdap.indicator_calculator.OrgLevel;
-import com.mohdap.indicator_calculator.OrgUnit;
-import com.mohdap.indicator_calculator.Period;
+import com.healthit.mohdap.indicator_calculator.AggregationType;
+import com.healthit.mohdap.indicator_calculator.OrgLevel;
+import com.healthit.mohdap.indicator_calculator.OrgUnit;
+import com.healthit.mohdap.indicator_calculator.Period;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

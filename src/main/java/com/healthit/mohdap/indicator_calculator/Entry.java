@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.mohdap.indicator_calculator;
+package com.healthit.mohdap.indicator_calculator;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
 import java.io.FileWriter;
@@ -17,6 +17,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import static org.hisp.dhis.antlr.AntlrParserUtils.castDouble;
@@ -26,20 +32,83 @@ import org.hisp.dhis.antlr.Parser;
  *
  * @author duncanndiithi
  */
-public class NewMain {
+public class Entry {
 
     final static org.apache.log4j.Logger log
-            = org.apache.log4j.Logger.getLogger(NewMain.class.getCanonicalName());
+            = org.apache.log4j.Logger.getLogger(Entry.class.getCanonicalName());
+
+    private static Options options = new Options();
+    private static final String helpString = "Indicator caculation module accepts csv file for indicators to process. If none is provided the module reads"
+            + " all indicators fro the KHIS db and processes them for all organisation units and periods.\n"
+            + "\tThe module operates in two modes:\n"
+            + "\t\t Mode 1. Running specific indicators for a given period and orgunit only.\n"
+            + "\t\t Mode 2. Running all indicators from the KHIS database. This resumes from last stopped preocessing timestamps for each "
+            + "indicator. This is the default mode for the app.";
+
+    static {
+        //Declare CLI options
+        options.addOption("c", "continue", true, "Will pick processing from where it left off.").
+                addOption("h", "help", false, "Display help information.")
+                .addOption("i", "info", false, "Display app info.")
+                .addOption("in", "input", true, "Path of file to use for in CVS format.")
+                .addOption("out", "output", true, "Location to write csv file of calculated indicators. Ensure app has write privileges.\n"
+                        + "If none is given, it output in current app directory");
+    }
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        try {
+
+            CommandLineParser parser = new DefaultParser();
+            CommandLine cmd = parser.parse(options, args);
+
+            if (cmd.hasOption("i")) {
+                System.out.println("DAP indicator calculation module.");
+                System.exit(0);
+            }
+
+            if (cmd.hasOption("c") && cmd.hasOption("in")) {
+                System.out.println("Cannot run both modes at same time. Choose to either run all indicators\n or give a list of "
+                        + "indicators to run.");
+                System.exit(0);
+            }
+
+            if (cmd.hasOption("h")) {
+                System.out.println(helpString);
+                System.exit(0);
+            }
+
+            if (cmd.hasOption("in")) {
+                String inputFilePath = cmd.getOptionValue("in");
+                String outputFilePath = cmd.getOptionValue("out");
+                if (inputFilePath == null) {
+                    HelpFormatter formatter = new HelpFormatter();
+                    formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
+                    System.exit(0);
+                } else {
+                    processIndicatorsFromUserFile(inputFilePath, outputFilePath);
+                }
+            }
+
+            processAllIndicators();
+
+        } catch (ParseException ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    private static void processIndicatorsFromUserFile(String inputFilePath, String outputFilePath) {
+
+    }
+
+    private static void processAllIndicators() {
         System.out.println("Processing begins... ");
 
-        List<Indicator> indicators = NewMain.getAllIndicators();
-        List<OrgUnit> orgunits = NewMain.getAllOrgUnits();
-        List<Period> periods = NewMain.getAllPeriods();
+        List<Indicator> indicators = Entry.getAllIndicators();
+        List<OrgUnit> orgunits = Entry.getAllOrgUnits();
+        List<Period> periods = Entry.getAllPeriods();
         List<List> resultListing = new ArrayList();
         for (Indicator indicator : indicators) {
             log.info("indicator name ===> " + indicator.getName());
@@ -107,7 +176,7 @@ public class NewMain {
                 }
             }
         }
-        NewMain.saveResultsToCsvFile(resultListing);
+        Entry.saveResultsToCsvFile(resultListing);
 
     }
 
@@ -145,8 +214,8 @@ public class NewMain {
         List<Period> periods = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period";//  where startdate >'2018-12-31'"
-            //   + " and startdate <'2019-02-01' and periodtypeid =5";// 5 -- monthly
+            String sql = "SELECT periodid, startdate, enddate FROM period  where startdate >'2017-12-31'"
+                    + " and startdate <'2018-02-01' and periodtypeid =5";// 5 -- monthly
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
@@ -179,7 +248,7 @@ public class NewMain {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
                     + " indicator indc\n"
-                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid";// where indicatorid=32966";
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid"; //where indicatorid=95445";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
@@ -231,7 +300,7 @@ public class NewMain {
         List<OrgUnit> orgunits = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where organisationunitid=18";
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where organisationunitid=23408";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 

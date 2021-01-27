@@ -3,16 +3,18 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.mohdap.indicator_calculator;
+package com.healthit.mohdap.indicator_calculator;
 
 /**
  *
  * @author duncanndiithi
  */
-public enum OrgLevel {
-    LEVEL_1,
-    LEVEL_2,
-    LEVEL_3,
-    LEVEL_4,
-    LEVEL_5
+public enum IndicatorType {
+    PERCENTAGE,
+    PER_1000,
+    PER_10000,
+    PER_5000,
+    PER_100000,
+    RATE_1,
+    NUMBER
 }

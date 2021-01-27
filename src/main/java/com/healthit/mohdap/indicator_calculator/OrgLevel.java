@@ -3,16 +3,16 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.mohdap.indicator_calculator;
+package com.healthit.mohdap.indicator_calculator;
 
 /**
  *
  * @author duncanndiithi
  */
-public enum AggregationType {
-    NONE,
-    COUNT,
-    AVERAGE,
-    AVERAGE_SUM_ORG_UNIT,
-    SUM
+public enum OrgLevel {
+    LEVEL_1,
+    LEVEL_2,
+    LEVEL_3,
+    LEVEL_4,
+    LEVEL_5
 }

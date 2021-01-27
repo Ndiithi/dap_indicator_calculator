@@ -1,6 +1,6 @@
-package com.mohdap.indicator_calculator;
+package com.healthit.mohdap.indicator_calculator;
 
-import com.mohdap.indicator_calculator.service.Aggregator;
+import com.healthit.mohdap.indicator_calculator.service.Aggregator;
 import java.math.BigDecimal;
 import org.hisp.dhis.antlr.AntlrExpressionVisitor;
 import static org.hisp.dhis.antlr.AntlrParserUtils.castDouble;

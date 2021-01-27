@@ -3,18 +3,16 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package com.mohdap.indicator_calculator;
+package com.healthit.mohdap.indicator_calculator;
 
 /**
  *
  * @author duncanndiithi
  */
-public enum IndicatorType {
-    PERCENTAGE,
-    PER_1000,
-    PER_10000,
-    PER_5000,
-    PER_100000,
-    RATE_1,
-    NUMBER
+public enum AggregationType {
+    NONE,
+    COUNT,
+    AVERAGE,
+    AVERAGE_SUM_ORG_UNIT,
+    SUM
 }

@@ -1,4 +1,4 @@
-package com.mohdap.indicator_calculator;
+package com.healthit.mohdap.indicator_calculator;
 
 import java.util.Date;
 
