@@ -26,23 +26,21 @@ public class DatabaseSource {
         String DB_URL = "db.url";
         String DB_DRIVER_CLASS = "driver.class.name";
 
-        try {
-            Properties properties = new Properties();
-            properties.load(DatabaseSource.class.getResourceAsStream("/database.properties"));
-
-            dataSource.setDriverClassName(properties.getProperty(DB_DRIVER_CLASS));
-            dataSource.setUrl(properties.getProperty(DB_URL));
-            dataSource.setUsername(properties.getProperty(DB_USERNAME));
-            dataSource.setPassword(properties.getProperty(DB_PASSWORD));
-
-            dataSource.setMinIdle(5);
-            dataSource.setMaxIdle(10);
-            dataSource.setMaxTotal(150);
-            dataSource.setInitialSize(2);
-
-        } catch (IOException ex) {
-            log.error(ex);
+        Properties properties = PropertiesLoader.getPropertiesFile("./database.properties");
+        if(properties==null){
+            log.error("Could not access database.properties file in ./");
+            System.exit(0);
         }
+        dataSource.setDriverClassName(properties.getProperty(DB_DRIVER_CLASS));
+        dataSource.setUrl(properties.getProperty(DB_URL));
+        dataSource.setUsername(properties.getProperty(DB_USERNAME));
+        dataSource.setPassword(properties.getProperty(DB_PASSWORD));
+
+        dataSource.setMinIdle(5);
+        dataSource.setMaxIdle(10);
+        dataSource.setMaxTotal(150);
+        dataSource.setInitialSize(2);
+
     }
 
     public static Connection getConnection() throws SQLException {

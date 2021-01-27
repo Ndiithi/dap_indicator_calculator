@@ -5,6 +5,7 @@
  */
 package com.healthit.indicator_calculator.util;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.log4j.Logger;
@@ -19,19 +20,18 @@ public class PropertiesLoader {
 
     final static Logger log = Logger.getLogger(PropertiesLoader.class.getCanonicalName());
 
-    public Properties getPropertiesFile(Properties propertyFile, String propertyFileName) {
+    public static Properties getPropertiesFile( String propertyFileName) {
+        Properties propertyFile=null;
         log.info("loading properties file: "+ propertyFileName);
         try {
             if (propertyFile == null) {
                 log.debug("properties file object null, loading to memory");
+                FileInputStream file = new FileInputStream(propertyFileName);
+
                 propertyFile = new Properties();
                 //InputStream s = Properties.class.getResourceAsStream("query_matcher.properties");
-                InputStream s =  PropertiesLoader.class.getClassLoader().getResourceAsStream(propertyFileName);
-                String p;
-                if (s==null) p="is null"; else p="not null";
-                log.debug("Stream status "+p);
-                propertyFile.load(s);
-                s.close();
+                propertyFile.load(file);
+                file.close();
             }
 
         } catch (IOException ex) {
