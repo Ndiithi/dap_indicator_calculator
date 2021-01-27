@@ -1,6 +1,7 @@
 package com.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
+import com.mohdap.indicator_calculator.AggregationType;
 import com.mohdap.indicator_calculator.OrgLevel;
 import com.mohdap.indicator_calculator.OrgUnit;
 import com.mohdap.indicator_calculator.Period;
@@ -28,12 +29,14 @@ public class Aggregator {
         aggregateValues = Cache2kBuilder.of(String.class, Double.class).name("aggregate").eternal(true).entryCapacity(4000000).build();
     }
 
-    String aggregatorSql = "select SUM(CAST (dt.value AS double precision)) as val from datavalue dt \n"
+    private String aggregatorSql = "select @aggregation_type as val from datavalue dt \n"
             + "inner join period pe on  dt.periodid=pe.periodid\n"
             + "inner join organisationunit orgunit on dt.sourceid=orgunit.organisationunitid\n"
             + "inner join dataelement de on dt.dataelementid=de.dataelementid\n"
-            + "inner join categoryoptioncombo comb on comb.categoryoptioncomboid  = dt.categoryoptioncomboid \n"
-            + "where de.aggregationtype='SUM' and de.valuetype in ('NUMBER','INTEGER') ";
+            + "inner join categoryoptioncombo comb on comb.categoryoptioncomboid  = dt.categoryoptioncomboid where ";
+         //   + "where de.valuetype in ('NUMBER','INTEGER') ";
+
+    private String aggregationTypeSql = "Select aggregationtype from dataelement where uid=?";
 
     public Double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
 
@@ -43,14 +46,15 @@ public class Aggregator {
         if (value != null) {
             return value;
         }
-
         String conditionClause = null;
         if (comboId != null) {
             conditionClause = "(de.uid='" + elementId + "' and comb.uid ='" + comboId + "')";
         } else {
             conditionClause = "(de.uid='" + elementId + "')";
         }
-        aggregatorSql = aggregatorSql + " and " + conditionClause + " and  pe.periodid=" + period.getId();
+        appendDataelementAggregationType(elementId);
+
+        aggregatorSql = aggregatorSql  + conditionClause + " and  pe.periodid=" + period.getId();
 
         OrgLevel orgunitLevel = orgunit.getHierarchylevel();
         appendOruntiSqlClause(orgunitLevel, orgunit.getId());
@@ -62,7 +66,7 @@ public class Aggregator {
         double calculatedValue = 0;
         try {
             conn = DatabaseSource.getConnection();
-
+            log.info(aggregatorSql);
             ps = conn.prepareStatement(aggregatorSql);
             rs = ps.executeQuery();
 
@@ -79,6 +83,43 @@ public class Aggregator {
         }
         aggregateValues.put(cacheValueName, calculatedValue);
         return calculatedValue;
+    }
+
+    private void appendDataelementAggregationType(String elementId) {
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        try {
+            conn = DatabaseSource.getConnection();
+            ps = conn.prepareStatement(aggregationTypeSql);
+            ps.setString(1, elementId);
+            rs = ps.executeQuery();
+
+            if (rs.next()) {
+                String aggregationType = rs.getString(1);
+                if ("COUNT".contentEquals(aggregationType)) {
+                    aggregatorSql = aggregatorSql.replaceAll("@aggregation_type as", "COUNT(CAST (dt.value AS double precision))");
+                } else if ("NONE".contentEquals(aggregationType)) {
+                    aggregatorSql = aggregatorSql.replaceAll("@aggregation_type as", "SUM(CAST (dt.value AS double precision))");
+                } else if ("AVERAGE".contentEquals(aggregationType)) {
+                    aggregatorSql = aggregatorSql.replaceAll("@aggregation_type as", "AVG(CAST (dt.value AS double precision))");
+                } else if ("AVERAGE_SUM_ORG_UNIT".contentEquals(aggregationType)) {
+                    aggregatorSql = aggregatorSql.replaceAll("@aggregation_type as", "AVG(CAST (dt.value AS double precision))");
+                } else if ("SUM".contentEquals(aggregationType)) {
+                    aggregatorSql = aggregatorSql.replaceAll("@aggregation_type as", "SUM(CAST (dt.value AS double precision))");
+                } else {
+                    aggregatorSql = aggregatorSql.replaceAll("@aggregation_type as", "SUM(CAST (dt.value AS double precision))");
+                }
+            }
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
     }
 
     private void appendOruntiSqlClause(OrgLevel orgunitLevel, int orgId) {
