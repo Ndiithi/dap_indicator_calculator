@@ -220,11 +220,15 @@ public class Aggregator {
         return indicator;
     }
 
-    private static OrgUnit extractOrgunitFromResultSet(ResultSet rs) throws SQLException {
+    private static OrgUnit extractOrgunitFromResultSet(ResultSet rs, boolean isByLevel) throws SQLException {
 
         OrgUnit orgUnit = new OrgUnit();
         orgUnit.setId(rs.getInt("organisationunitid"));
-        orgUnit.setName(rs.getString("name"));
+        if (isByLevel) {
+            orgUnit.setName(rs.getString("child_name"));
+        } else {
+            orgUnit.setName(rs.getString("name"));
+        }
         orgUnit.setParentId(rs.getInt("parentid"));
         orgUnit.setUuid(rs.getString("uid"));
 
@@ -372,7 +376,7 @@ public class Aggregator {
 
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
-                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
+                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs, false);
                     orgunits.add(orgUnit);
                 }
             }
@@ -399,19 +403,18 @@ public class Aggregator {
             String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where trim(name) in(" + Stringzz.buildCommaSeperatedString(orgunitNames) + ")";
             if (isByLevel) {
                 sql = "SELECT org_child.organisationunitid, org_parent.name parent_name,org_child.name child_name, org_child.parentid, org_child.uid, org_child.hierarchylevel "
-                        + "FROM organisationunit org_parent"
+                        + "FROM organisationunit org_parent "
                         + "inner join organisationunit org_child on org_child.parentid=org_parent.organisationunitid where trim(org_parent.name) in(" + Stringzz.buildCommaSeperatedString(orgunitNames) + ")";
             }
 
             ps = conn.prepareStatement(sql);
             //ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
-
+            log.debug("Org sql to run ");
+            log.debug(ps);
             rs = ps.executeQuery();
-
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
-
-                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
+                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs, isByLevel);
                     if (isByLevel) {
                         String pName = "'" + rs.getString("parent_name").trim() + "'";
                         if (parentAndOrgunits.containsKey(pName)) {
@@ -652,14 +655,11 @@ public class Aggregator {
         List<List> resultListing = new ArrayList();
         log.debug("returned periods");
         log.debug(p);
-        
+
         for (List<String> lst : indicatorsToProcess) {
 
             OrgUnit orgUnit = o.get("'" + lst.get(1).trim() + "'");
             Period period = p.get(lst.get(2));
-            log.debug(p);
-            log.debug(lst.get(2));
-            log.debug(listVals[2]);
             Indicator indicator = i.get("'" + lst.get(0).trim() + "'");
             log.debug("period to process ");
             log.debug(period);
@@ -676,7 +676,7 @@ public class Aggregator {
     }
 
     public static void processByOrgLevel(List<List<String>> indicatorsToProcess, String outputFilePath) {
-        Object[] listVals = wrapParametersToProcess(indicatorsToProcess, false);
+        Object[] listVals = wrapParametersToProcess(indicatorsToProcess, true);
 
         Map<String, Indicator> i = (Map<String, Indicator>) listVals[0];
         Map<String, Period> p = (Map<String, Period>) listVals[2];
@@ -684,27 +684,28 @@ public class Aggregator {
 
         List<List> resultListing = new ArrayList();
         for (List<String> lst : indicatorsToProcess) {
+
             List calculatedValues = null;
             for (Map.Entry<String, List<OrgUnit>> entry : o.entrySet()) {
-                if (entry.getKey().equals(lst.get(1))) { //if map key which is parent org unit equals orgunit from user csv of the same indicator and period, then process
+
+                if (entry.getKey().contentEquals("'" + lst.get(1) + "'")) { //if map key which is parent org unit equals orgunit from user csv of the same indicator and period, then process
 
                     List<OrgUnit> childOrgs = entry.getValue();
                     for (OrgUnit childOrg : childOrgs) {
                         OrgUnit orgUnit = childOrg;
                         Period period = p.get(lst.get(2));
-                        Indicator indicator = i.get(lst.get(0));
+                        Indicator indicator = i.get("'" + lst.get(0) + "'");
                         calculatedValues = getCalculatedIndicator(indicator, orgUnit, period);
-
+                        if (calculatedValues == null) {
+                            continue;
+                        } else {
+                            resultListing.add(calculatedValues);
+                        }
                     }
                 }
 
-                if (calculatedValues == null) {
-                    continue;
-                } else {
-                    resultListing.add(calculatedValues);
-                }
-
             }
+            log.info(resultListing.size());
             Aggregator.saveResultsToCsvFile(resultListing);
         }
 
