@@ -113,12 +113,12 @@ public class Entry {
 
             for (CSVRecord record : records) {
                 csvLineNumber += 1;
-                String indicator = record.get("indicator");
+                String indicator = record.get("indicator").trim();
                 String organisation;
                 if (isProcesssByOrgLevel) {
-                    organisation = record.get("organisation_level");
+                    organisation = record.get("organisation_level").trim();
                 } else {
-                    organisation = record.get("organisation");
+                    organisation = record.get("organisation").trim();
                 }
 
                 String period = record.get("period");

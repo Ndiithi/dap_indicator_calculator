@@ -340,7 +340,7 @@ public class Aggregator {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
                     + " indicator indc\n"
-                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where indc.name in (?)";
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where trim(indc.name) in (?)";
             ps = conn.prepareStatement(sql);
             ps.setString(1, Stringzz.buildCommaSeperatedString(indicatorsNames));
             rs = ps.executeQuery();
@@ -394,11 +394,11 @@ public class Aggregator {
         Map<String, Object> parentAndOrgunits = new HashMap();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where name in(?)";
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where trim(name) in(?)";
             if (isByLevel) {
                 sql = "SELECT org_child.organisationunitid, org_parent.name parent_name,org_child.name child_name, org_child.parentid, org_child.uid, org_child.hierarchylevel "
                         + "FROM organisationunit org_parent"
-                        + "inner join organisationunit org_child on org_child.parentid=org_parent.organisationunitid where org_parent.name in(?)";
+                        + "inner join organisationunit org_child on org_child.parentid=org_parent.organisationunitid where trim(org_parent.name) in(?)";
             }
 
             ps = conn.prepareStatement(sql);
