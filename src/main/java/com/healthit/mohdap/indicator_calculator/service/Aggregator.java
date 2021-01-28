@@ -20,8 +20,10 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.cache2k.Cache;
@@ -383,7 +385,7 @@ public class Aggregator {
         return orgunits;
     }
 
-    private static Map<String, OrgUnit> getOrgUnits(List<String> orgunitNames) {
+    private static Map<String, OrgUnit> getOrgUnits(List<String> orgunitNames, boolean isByLevel) {
 
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -392,6 +394,11 @@ public class Aggregator {
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where name in(?)";
+            if (isByLevel) {
+                sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where parentid in("
+                        + "select organisationunitid FROM public.organisationunit where name in(?))";
+            }
+
             ps = conn.prepareStatement(sql);
             ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
             rs = ps.executeQuery();
@@ -593,15 +600,10 @@ public class Aggregator {
         return periods;
     }
 
-    public static void processByOrgUnit(List<List<String>> indicatorsToProcess, String outputFilePath) {
-
+    private static Object[] wrapParametersToProcess(List<List<String>> indicatorsToProcess, boolean isByLevel) {
         List<String> indicators = new ArrayList();
         List<String> orgs = new ArrayList();
         List<String> periods = new ArrayList();
-
-        Map<String, Period> periodMap = null;
-        Map<String, OrgUnit> orgunitMap = null;
-        Map<String, Indicator> indicatorMap = null;
 
         for (List<String> lst : indicatorsToProcess) {
             indicators.add(lst.get(0));
@@ -610,14 +612,27 @@ public class Aggregator {
 
         }
 
-        indicatorMap = getIndicatorsByName(indicators);
-        periodMap = getPeriods(periods);
-        orgunitMap = getOrgUnits(orgs);
+        Map<String, Period> periodMap = getPeriods(periods);
+        Map<String, OrgUnit> orgunitMap = getOrgUnits(orgs, isByLevel);
+        Map<String, Indicator> indicatorMap = getIndicatorsByName(indicators);
+
+        Object[] listToReturn = {indicatorMap, orgunitMap, periodMap};
+        return listToReturn;
+    }
+
+    public static void processByOrgUnit(List<List<String>> indicatorsToProcess, String outputFilePath) {
+
+        Object[] listVals = wrapParametersToProcess(indicatorsToProcess, false);
+
+        Map<String, Indicator> i = (Map<String, Indicator>) listVals[0];
+        Map<String, Period> p = (Map<String, Period>) listVals[2];
+        Map<String, OrgUnit> o = (Map<String, OrgUnit>) listVals[1];
+
         List<List> resultListing = new ArrayList();
         for (List<String> lst : indicatorsToProcess) {
-            OrgUnit orgUnit = orgunitMap.get(lst.get(1));
-            Period period = periodMap.get(lst.get(2));
-            Indicator indicator = indicatorMap.get(lst.get(0));
+            OrgUnit orgUnit = o.get(lst.get(1));
+            Period period = p.get(lst.get(2));
+            Indicator indicator = i.get(lst.get(0));
 
             List calculatedValues = getCalculatedIndicator(indicator, orgUnit, period);
             if (calculatedValues == null) {
