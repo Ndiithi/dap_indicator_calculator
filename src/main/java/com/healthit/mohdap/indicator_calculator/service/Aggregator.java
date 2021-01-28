@@ -385,27 +385,42 @@ public class Aggregator {
         return orgunits;
     }
 
-    private static Map<String, OrgUnit> getOrgUnits(List<String> orgunitNames, boolean isByLevel) {
+    private static Map<String, Object> getOrgUnits(List<String> orgunitNames, boolean isByLevel) {
 
         PreparedStatement ps = null;
         ResultSet rs = null;
         Connection conn = null;
-        Map<String, OrgUnit> orgunits = null;
+        Map<String, Object> orgunits = new HashMap();
+        Map<String, Object> parentAndOrgunits = new HashMap();
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where name in(?)";
             if (isByLevel) {
-                sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where parentid in("
-                        + "select organisationunitid FROM public.organisationunit where name in(?))";
+                sql = "SELECT org_child.organisationunitid, org_parent.name parent_name,org_child.name child_name, org_child.parentid, org_child.uid, org_child.hierarchylevel "
+                        + "FROM organisationunit org_parent"
+                        + "inner join organisationunit org_child on org_child.parentid=org_parent.organisationunitid where org_parent.name in(?)";
             }
 
             ps = conn.prepareStatement(sql);
             ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
             rs = ps.executeQuery();
+
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
-                    orgunits.put(rs.getString("name"), orgUnit);
+                    if (isByLevel) {
+                        if (parentAndOrgunits.containsKey(rs.getString("parent_name"))) {
+                            List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get("parent_name");
+                            orgsList.add(orgUnit);
+                        } else {
+                            parentAndOrgunits.put("parent_name", new ArrayList<OrgUnit>());
+                            List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get("parent_name");
+                            orgsList.add(orgUnit);
+                        }
+
+                    } else {
+                        orgunits.put(rs.getString("name"), orgUnit);
+                    }
                 }
             }
         } catch (SQLException ex) {
@@ -414,6 +429,9 @@ public class Aggregator {
             DatabaseSource.close(rs);
             DatabaseSource.close(ps);
             DatabaseSource.close(conn);
+        }
+        if (isByLevel) {
+            return parentAndOrgunits;
         }
         return orgunits;
 
@@ -612,11 +630,7 @@ public class Aggregator {
 
         }
 
-        Map<String, Period> periodMap = getPeriods(periods);
-        Map<String, OrgUnit> orgunitMap = getOrgUnits(orgs, isByLevel);
-        Map<String, Indicator> indicatorMap = getIndicatorsByName(indicators);
-
-        Object[] listToReturn = {indicatorMap, orgunitMap, periodMap};
+        Object[] listToReturn = {getIndicatorsByName(indicators), getOrgUnits(orgs, isByLevel), getPeriods(periods)};
         return listToReturn;
     }
 
