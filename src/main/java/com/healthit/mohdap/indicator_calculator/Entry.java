@@ -137,7 +137,7 @@ public class Entry {
                 List params = new ArrayList();
                 params.add(indicator);
                 params.add(organisation);
-                params.add(fromPeriod);
+                params.add(period);
                 indicatorsToProcess.add(params);
             }
             if (isProcesssByOrgLevel) {

@@ -1,6 +1,7 @@
 package com.healthit.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
+import com.healthit.indicator_calculator.util.Stringzz;
 import com.healthit.mohdap.indicator_calculator.AggregationType;
 import com.healthit.mohdap.indicator_calculator.Entry;
 import com.healthit.mohdap.indicator_calculator.Indicator;
@@ -15,6 +16,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -247,6 +250,16 @@ public class Aggregator {
         return orgUnit;
     }
 
+    private static Period extractPeriodFromResultSet(ResultSet rs) throws SQLException {
+
+        Period period = new Period();
+        period.setId(rs.getInt("periodid"));
+        period.setStartDate(rs.getDate("startdate"));
+        period.setEndDate(rs.getDate("enddate"));
+
+        return period;
+    }
+
     /**
      *
      * @param rs
@@ -321,24 +334,13 @@ public class Aggregator {
         ResultSet rs = null;
         Connection conn = null;
         Map<String, Indicator> indicators = null;
-        StringBuilder indicatorNms = new StringBuilder();
-        boolean added = false;
-        for (String indicatorName : indicatorsNames) {
-            if (added) {
-                indicatorNms.append("," + "'" + indicatorName + "'");
-            } else {
-                indicatorNms.append(indicatorName);
-                added = true;
-            }
-        }
-
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
                     + " indicator indc\n"
                     + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where indc.name in (?)";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, indicatorNms.toString());
+            ps.setString(1, Stringzz.buildCommaSeperatedString(indicatorsNames));
             rs = ps.executeQuery();
 
             indicators = formatIndicatorsMap(rs);
@@ -354,8 +356,6 @@ public class Aggregator {
     }
 
     private static List<OrgUnit> getOrgUnits() {
-
-        int orgLevel = 1; //Kenya
         PreparedStatement ps = null;
         ResultSet rs = null;
         Connection conn = null;
@@ -381,7 +381,6 @@ public class Aggregator {
             DatabaseSource.close(conn);
         }
         return orgunits;
-
     }
 
     private static Map<String, OrgUnit> getOrgUnits(List<String> orgunitNames) {
@@ -390,22 +389,11 @@ public class Aggregator {
         ResultSet rs = null;
         Connection conn = null;
         Map<String, OrgUnit> orgunits = null;
-        StringBuilder orgunitNms = new StringBuilder();
-        boolean added = false;
-        for (String name : orgunitNames) {
-            if (added) {
-                orgunitNms.append("," + "'" + name + "'");
-            } else {
-                orgunitNms.append(name);
-                added = true;
-            }
-        }
-
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where name in(?)";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, orgunitNms.toString());
+            ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
             rs = ps.executeQuery();
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
@@ -462,7 +450,7 @@ public class Aggregator {
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
         List<OrgUnit> orgunits = Aggregator.getOrgUnits();
-        List<Period> periods = Aggregator.getAllPeriods();
+        List<Period> periods = Aggregator.getPeriods();
         List<List> resultListing = new ArrayList();
         for (Indicator indicator : indicators) {
             log.info("indicator name ===> " + indicator.getName());
@@ -534,7 +522,7 @@ public class Aggregator {
 
     }
 
-    private static List<Period> getAllPeriods() {
+    private static List<Period> getPeriods() {
 
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -548,10 +536,7 @@ public class Aggregator {
             rs = ps.executeQuery();
 
             while (rs.next()) {
-                Period period = new Period();
-                period.setId(rs.getInt("periodid"));
-                period.setStartDate(rs.getDate("startdate"));
-                period.setEndDate(rs.getDate("enddate"));
+                Period period = extractPeriodFromResultSet(rs);
                 periods.add(period);
             }
 
@@ -564,6 +549,37 @@ public class Aggregator {
         }
         return periods;
 
+    }
+
+    private static Map<String, Period> getPeriods(List<String> pe) {
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        Map<String, Period> periods = new HashMap();
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT periodid, startdate, enddate FROM period  where startdate in(?) "
+                    + " and periodtypeid =5";// 5 -- monthly
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, Stringzz.buildCommaSeperatedString(pe));
+            rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Period period = extractPeriodFromResultSet(rs);
+                DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+                String strDate = dateFormat.format(rs.getDate("startdate"));
+                periods.put(strDate, period);
+            }
+
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return periods;
     }
 
     public static void processByOrgUnit(List<List> indicatorsToProcess, String outputFilePath) {
