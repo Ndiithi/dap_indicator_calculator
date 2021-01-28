@@ -73,7 +73,9 @@ public class Entry {
             }
 
             if (cmd.hasOption("h")) {
-                System.out.println(helpString);
+                System.out.println("\n"+helpString+"\n");
+                HelpFormatter formatter = new HelpFormatter();
+                formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
                 System.exit(0);
             }
 
@@ -97,12 +99,13 @@ public class Entry {
     }
 
     private static void processIndicatorsFromUserFile(String inputFilePath, String outputFilePath) {
+        log.debug("File location: "+inputFilePath);
         Reader in = null;
         List<List<String>> indicatorsToProcess = new ArrayList();
         int csvLineNumber = 1;
         boolean isProcesssByOrgLevel = false;
         try {
-            in = new FileReader("inputFilePath");
+            in = new FileReader(inputFilePath);
 
             CSVParser csvParser = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(in);
             Iterable<CSVRecord> records = csvParser;
