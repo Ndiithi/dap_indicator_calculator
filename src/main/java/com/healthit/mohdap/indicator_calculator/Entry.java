@@ -5,24 +5,15 @@
  */
 package com.healthit.mohdap.indicator_calculator;
 
-import com.healthit.indicator_calculator.util.DatabaseSource;
 import com.healthit.mohdap.indicator_calculator.service.Aggregator;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
-import java.math.BigDecimal;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -33,8 +24,6 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
-import static org.hisp.dhis.antlr.AntlrParserUtils.castDouble;
-import org.hisp.dhis.antlr.Parser;
 
 /**
  *
