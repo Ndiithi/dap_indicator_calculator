@@ -595,10 +595,11 @@ public class Aggregator {
         Map<String, Period> periods = new HashMap();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period  where startdate in(?) "
+            String sql = "SELECT periodid, startdate, enddate FROM period  where to_char(\"startdate\", 'YYYY-dd-mm') in(?) "
                     + " and periodtypeid =5";// 5 -- monthly
             ps = conn.prepareStatement(sql);
             ps.setString(1, Stringzz.buildCommaSeperatedString(pe));
+            log.debug(ps);
             rs = ps.executeQuery();
 
             while (rs.next()) {
