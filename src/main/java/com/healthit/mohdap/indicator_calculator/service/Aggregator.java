@@ -661,7 +661,37 @@ public class Aggregator {
     }
 
     public static void processByOrgLevel(List<List<String>> indicatorsToProcess, String outputFilePath) {
+        Object[] listVals = wrapParametersToProcess(indicatorsToProcess, false);
+
+        Map<String, Indicator> i = (Map<String, Indicator>) listVals[0];
+        Map<String, Period> p = (Map<String, Period>) listVals[2];
+        Map<String, List<OrgUnit>> o = (Map<String, List<OrgUnit>>) listVals[1];
+
+        List<List> resultListing = new ArrayList();
+        for (List<String> lst : indicatorsToProcess) {
+            List calculatedValues = null;
+            for (Map.Entry<String, List<OrgUnit>> entry : o.entrySet()) {
+                if (entry.getKey().equals(lst.get(1))) { //if map key which is parent org unit equals orgunit from user csv of the same indicator and period, then process
+
+                    List<OrgUnit> childOrgs = entry.getValue();
+                    for (OrgUnit childOrg : childOrgs) {
+                        OrgUnit orgUnit = childOrg;
+                        Period period = p.get(lst.get(2));
+                        Indicator indicator = i.get(lst.get(0));
+                        calculatedValues = getCalculatedIndicator(indicator, orgUnit, period);
+
+                    }
+                }
+
+                if (calculatedValues == null) {
+                    continue;
+                } else {
+                    resultListing.add(calculatedValues);
+                }
+
+            }
+            Aggregator.saveResultsToCsvFile(resultListing);
+        }
 
     }
-
 }
