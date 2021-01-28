@@ -19,7 +19,7 @@ public class Stringzz {
             if (added) {
                 commaSeperatedValues.append("," + "'" + value + "'");
             } else {
-                commaSeperatedValues.append(value);
+                commaSeperatedValues.append("'"+value+"'");
                 added = true;
             }
         }

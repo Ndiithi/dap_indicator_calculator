@@ -64,7 +64,7 @@ public class Aggregator {
      * @return
      */
     public Double aggregateValuesDataElements(String elementId, String comboId, Period period, OrgUnit orgunit) {
-
+        log.debug(elementId + " : " + comboId + " : " + period + " : " + orgunit);
         String cacheValueName = elementId + "" + comboId + "" + period.getId() + "" + orgunit.getId();
         Double value = aggregateValues.get(cacheValueName);
 
@@ -296,7 +296,7 @@ public class Aggregator {
         try {
             while (rs.next()) {
                 String indicname = rs.getString("name");
-                result.put("'"+indicname.trim()+"'", extractIndicatorFromResultSet(rs));
+                result.put("'" + indicname.trim() + "'", extractIndicatorFromResultSet(rs));
 
             }
 
@@ -317,7 +317,7 @@ public class Aggregator {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
                     + " indicator indc\n"
-                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid"; //where indicatorid=95445";
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid where indicatorid=32942";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
             indicators = formatIndicators(rs);
@@ -336,14 +336,14 @@ public class Aggregator {
         ResultSet rs = null;
         Connection conn = null;
         Map<String, Indicator> indicators = null;
-        log.debug("comma seperated string for prep stamnt "+Stringzz.buildCommaSeperatedString(indicatorsNames));
+        log.debug("comma seperated string for prep stamnt " + Stringzz.buildCommaSeperatedString(indicatorsNames));
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
                     + " indicator indc\n"
-                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where trim(indc.name) in (?)";
+                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where trim(indc.name) in (" + Stringzz.buildCommaSeperatedString(indicatorsNames) + ")";
             ps = conn.prepareStatement(sql);
-            ps.setString(1, Stringzz.buildCommaSeperatedString(indicatorsNames));
+            //ps.setString(1, Stringzz.buildCommaSeperatedString(indicatorsNames));
             log.debug(ps);
             rs = ps.executeQuery();
 
@@ -366,7 +366,7 @@ public class Aggregator {
         List<OrgUnit> orgunits = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit";
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where organisationunitid=18";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
@@ -396,24 +396,24 @@ public class Aggregator {
         Map<String, Object> parentAndOrgunits = new HashMap();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where trim(name) in(?)";
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where trim(name) in(" + Stringzz.buildCommaSeperatedString(orgunitNames) + ")";
             if (isByLevel) {
                 sql = "SELECT org_child.organisationunitid, org_parent.name parent_name,org_child.name child_name, org_child.parentid, org_child.uid, org_child.hierarchylevel "
                         + "FROM organisationunit org_parent"
-                        + "inner join organisationunit org_child on org_child.parentid=org_parent.organisationunitid where trim(org_parent.name) in(?)";
+                        + "inner join organisationunit org_child on org_child.parentid=org_parent.organisationunitid where trim(org_parent.name) in(" + Stringzz.buildCommaSeperatedString(orgunitNames) + ")";
             }
 
             ps = conn.prepareStatement(sql);
-            ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
-            
+            //ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
+
             rs = ps.executeQuery();
 
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
-                    
+
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
                     if (isByLevel) {
-                        String pName="'"+rs.getString("parent_name").trim()+"'";
+                        String pName = "'" + rs.getString("parent_name").trim() + "'";
                         if (parentAndOrgunits.containsKey(pName)) {
                             List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get(pName);
                             orgsList.add(orgUnit);
@@ -424,7 +424,7 @@ public class Aggregator {
                         }
 
                     } else {
-                        orgunits.put("'"+rs.getString("name").trim()+"'", orgUnit);
+                        orgunits.put("'" + rs.getString("name").trim() + "'", orgUnit);
                     }
                 }
             }
@@ -438,7 +438,7 @@ public class Aggregator {
         if (isByLevel) {
             return parentAndOrgunits;
         }
-        log.debug("Orgs to return "+orgunits.toString());
+        log.debug("Orgs to return " + orgunits.toString());
         return orgunits;
 
     }
@@ -571,7 +571,7 @@ public class Aggregator {
         List<Period> periods = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period";// 5 -- monthly
+            String sql = "SELECT periodid, startdate, enddate FROM period where startdate='2019-01-01'";// 5 -- monthly
             ps = conn.prepareStatement(sql);
             log.debug(ps);
             rs = ps.executeQuery();
@@ -600,10 +600,10 @@ public class Aggregator {
         Map<String, Period> periods = new HashMap();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period  where to_char(\"startdate\", 'YYYY-dd-mm') in(?) "
+            String sql = "SELECT periodid, startdate, enddate FROM period  where to_char(\"startdate\", 'YYYY-MM-DD') in(" + Stringzz.buildCommaSeperatedString(pe) + ") "
                     + " and periodtypeid =5";// 5 -- monthly
             ps = conn.prepareStatement(sql);
-            ps.setString(1, Stringzz.buildCommaSeperatedString(pe));
+            //  ps.setString(1, Stringzz.buildCommaSeperatedString(pe));
             log.debug(ps);
             rs = ps.executeQuery();
 
@@ -621,6 +621,7 @@ public class Aggregator {
             DatabaseSource.close(ps);
             DatabaseSource.close(conn);
         }
+        log.debug(periods);
         return periods;
     }
 
@@ -643,20 +644,25 @@ public class Aggregator {
     public static void processByOrgUnit(List<List<String>> indicatorsToProcess, String outputFilePath) {
         log.debug(indicatorsToProcess.toString());
         Object[] listVals = wrapParametersToProcess(indicatorsToProcess, false);
-        
+        log.debug(listVals[2]);
         Map<String, Indicator> i = (Map<String, Indicator>) listVals[0];
         Map<String, Period> p = (Map<String, Period>) listVals[2];
         Map<String, OrgUnit> o = (Map<String, OrgUnit>) listVals[1];
 
         List<List> resultListing = new ArrayList();
+        log.debug("returned periods");
+        log.debug(p);
         
         for (List<String> lst : indicatorsToProcess) {
 
-            
-            OrgUnit orgUnit = o.get("'"+lst.get(1).trim()+"'");
+            OrgUnit orgUnit = o.get("'" + lst.get(1).trim() + "'");
             Period period = p.get(lst.get(2));
-            Indicator indicator = i.get("'"+lst.get(0).trim()+"'");
-            
+            log.debug(p);
+            log.debug(lst.get(2));
+            log.debug(listVals[2]);
+            Indicator indicator = i.get("'" + lst.get(0).trim() + "'");
+            log.debug("period to process ");
+            log.debug(period);
             List calculatedValues = getCalculatedIndicator(indicator, orgUnit, period);
             if (calculatedValues == null) {
                 continue;
