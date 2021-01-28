@@ -296,7 +296,7 @@ public class Aggregator {
         try {
             while (rs.next()) {
                 String indicname = rs.getString("name");
-                result.put(indicname, extractIndicatorFromResultSet(rs));
+                result.put("'"+indicname.trim()+"'", extractIndicatorFromResultSet(rs));
 
             }
 
@@ -336,6 +336,7 @@ public class Aggregator {
         ResultSet rs = null;
         Connection conn = null;
         Map<String, Indicator> indicators = null;
+        log.debug("comma seperated string for prep stamnt "+Stringzz.buildCommaSeperatedString(indicatorsNames));
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
@@ -343,6 +344,7 @@ public class Aggregator {
                     + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where trim(indc.name) in (?)";
             ps = conn.prepareStatement(sql);
             ps.setString(1, Stringzz.buildCommaSeperatedString(indicatorsNames));
+            log.debug(ps);
             rs = ps.executeQuery();
 
             indicators = formatIndicatorsMap(rs);
@@ -403,23 +405,26 @@ public class Aggregator {
 
             ps = conn.prepareStatement(sql);
             ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
+            
             rs = ps.executeQuery();
 
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                    
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
                     if (isByLevel) {
-                        if (parentAndOrgunits.containsKey(rs.getString("parent_name"))) {
-                            List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get("parent_name");
+                        String pName="'"+rs.getString("parent_name").trim()+"'";
+                        if (parentAndOrgunits.containsKey(pName)) {
+                            List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get(pName);
                             orgsList.add(orgUnit);
                         } else {
-                            parentAndOrgunits.put("parent_name", new ArrayList<OrgUnit>());
-                            List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get("parent_name");
+                            parentAndOrgunits.put(pName, new ArrayList<OrgUnit>());
+                            List<OrgUnit> orgsList = (List<OrgUnit>) parentAndOrgunits.get(pName);
                             orgsList.add(orgUnit);
                         }
 
                     } else {
-                        orgunits.put(rs.getString("name"), orgUnit);
+                        orgunits.put("'"+rs.getString("name").trim()+"'", orgUnit);
                     }
                 }
             }
@@ -433,6 +438,7 @@ public class Aggregator {
         if (isByLevel) {
             return parentAndOrgunits;
         }
+        log.debug("Orgs to return "+orgunits.toString());
         return orgunits;
 
     }
@@ -486,8 +492,7 @@ public class Aggregator {
         reslt.add(period.getStartDate());
         reslt.add(period.getEndDate());
         try {
-            log.info("numerator value: ====>> " + numeratorResult.toString());
-            log.info("denomenator value: ====>> " + denomeratorResult.toString());
+
             if (numeratorResult.toString().contains("Infinity")
                     || denomeratorResult.toString().contains("Infinity")
                     || numeratorResult.toString().contains("NaN")
@@ -566,9 +571,9 @@ public class Aggregator {
         List<Period> periods = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period  where startdate >'2017-12-31'"
-                    + " and startdate <'2018-02-01' and periodtypeid =5";// 5 -- monthly
+            String sql = "SELECT periodid, startdate, enddate FROM period";// 5 -- monthly
             ps = conn.prepareStatement(sql);
+            log.debug(ps);
             rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -636,19 +641,22 @@ public class Aggregator {
     }
 
     public static void processByOrgUnit(List<List<String>> indicatorsToProcess, String outputFilePath) {
-
+        log.debug(indicatorsToProcess.toString());
         Object[] listVals = wrapParametersToProcess(indicatorsToProcess, false);
-
+        
         Map<String, Indicator> i = (Map<String, Indicator>) listVals[0];
         Map<String, Period> p = (Map<String, Period>) listVals[2];
         Map<String, OrgUnit> o = (Map<String, OrgUnit>) listVals[1];
 
         List<List> resultListing = new ArrayList();
+        
         for (List<String> lst : indicatorsToProcess) {
-            OrgUnit orgUnit = o.get(lst.get(1));
-            Period period = p.get(lst.get(2));
-            Indicator indicator = i.get(lst.get(0));
 
+            
+            OrgUnit orgUnit = o.get("'"+lst.get(1).trim()+"'");
+            Period period = p.get(lst.get(2));
+            Indicator indicator = i.get("'"+lst.get(0).trim()+"'");
+            
             List calculatedValues = getCalculatedIndicator(indicator, orgUnit, period);
             if (calculatedValues == null) {
                 continue;

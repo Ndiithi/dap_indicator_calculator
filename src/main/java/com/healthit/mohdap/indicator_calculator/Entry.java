@@ -88,6 +88,7 @@ public class Entry {
                     System.exit(0);
                 } else {
                     processIndicatorsFromUserFile(inputFilePath, outputFilePath);
+                    System.exit(0);
                 }
             }
 
