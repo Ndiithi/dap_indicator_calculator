@@ -417,34 +417,88 @@ public class Aggregator {
      * @param resultListing
      */
     private static void saveResultsToCsvFile(List<List> resultListing) {
+        if (resultListing != null) {
+            FileWriter out = null;
+            String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value"};
+            try {
+                out = new FileWriter("calculated_indicators.csv");
 
-        FileWriter out = null;
-        String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value"};
-        try {
-            out = new FileWriter("calculated_indicators.csv");
+                try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
+                        .withHeader(HEADERS))) {
+                    for (List rslt : resultListing) {
+                        printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
+                    }
 
-            try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
-                    .withHeader(HEADERS))) {
-                for (List rslt : resultListing) {
-                    printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
                 }
 
-            }
-
-        } catch (IOException ex) {
-            log.error(ex);
-        } finally {
-            try {
-                out.close();
             } catch (IOException ex) {
                 log.error(ex);
+            } finally {
+                try {
+                    out.close();
+                } catch (IOException ex) {
+                    log.error(ex);
+                }
             }
         }
+
     }
 
-    /**
-     *
-     */
+    private static List getCalculatedIndicator(Indicator indicator, OrgUnit orgUnit, Period period) {
+
+        Object numeratorResult = Parser.visit(indicator.getNumerator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgUnit));
+
+        Object denomeratorResult = Parser.visit(indicator.getDenominator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgUnit));
+
+        if (numeratorResult == null || denomeratorResult == null) {
+            return null;
+        }
+
+        log.info("period: ====>> " + period.getStartDate());
+
+        List reslt = new ArrayList();
+        reslt.add(indicator.getName());
+        reslt.add(period.getStartDate());
+        reslt.add(period.getEndDate());
+        try {
+            log.info("numerator value: ====>> " + numeratorResult.toString());
+            log.info("denomenator value: ====>> " + denomeratorResult.toString());
+            if (numeratorResult.toString().contains("Infinity")
+                    || denomeratorResult.toString().contains("Infinity")
+                    || numeratorResult.toString().contains("NaN")
+                    || denomeratorResult.toString().contains("NaN")) {
+                return null;
+            }
+            Double num = BigDecimal.valueOf(castDouble(numeratorResult.toString()))
+                    .doubleValue();
+            Double denom = BigDecimal.valueOf(castDouble(denomeratorResult.toString()))
+                    .doubleValue();
+
+            log.info("denomenator value: ====>> " + BigDecimal.valueOf(castDouble(denomeratorResult.toString())));
+            log.info("factor value: ====>> " + indicator.getFactor());
+            Double results = (num / denom) * indicator.getFactor();
+
+            log.info("results value: ====>> " + results);
+            if (indicator.getIndicatorType() == IndicatorType.NUMBER) {
+
+                if (results == Double.POSITIVE_INFINITY || results == Double.NEGATIVE_INFINITY) {
+                    reslt.add(0.0);
+                } else {
+                    reslt.add(results.intValue());
+                }
+
+            } else {
+                reslt.add(results);
+            }
+
+        } catch (ArithmeticException ex) {
+            return null;
+        }
+
+        return reslt;
+
+    }
+
     public static void processAllIndicators() {
         System.out.println("Processing begins... ");
 
@@ -465,56 +519,13 @@ public class Aggregator {
 
             for (OrgUnit orgunit : orgunits) {
                 for (Period period : periods) {
-                    Object numeratorResult = Parser.visit(indicator.getNumerator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgunit));
-
-                    Object denomeratorResult = Parser.visit(indicator.getDenominator().trim().replaceAll("\\s+", ""), new CommonExpressionVisitor(period, orgunit));
-
-                    if (numeratorResult == null || denomeratorResult == null) {
+                    List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
+                    if (calculatedValues == null) {
                         continue;
+                    } else {
+                        resultListing.add(calculatedValues);
                     }
 
-                    log.info("period: ====>> " + period.getStartDate());
-
-                    List reslt = new ArrayList();
-                    reslt.add(indicator.getName());
-                    reslt.add(period.getStartDate());
-                    reslt.add(period.getEndDate());
-                    try {
-                        log.info("numerator value: ====>> " + numeratorResult.toString());
-                        log.info("denomenator value: ====>> " + denomeratorResult.toString());
-                        if (numeratorResult.toString().contains("Infinity")
-                                || denomeratorResult.toString().contains("Infinity")
-                                || numeratorResult.toString().contains("NaN")
-                                || denomeratorResult.toString().contains("NaN")) {
-                            continue;
-                        }
-                        Double num = BigDecimal.valueOf(castDouble(numeratorResult.toString()))
-                                .doubleValue();
-                        Double denom = BigDecimal.valueOf(castDouble(denomeratorResult.toString()))
-                                .doubleValue();
-
-                        log.info("denomenator value: ====>> " + BigDecimal.valueOf(castDouble(denomeratorResult.toString())));
-                        log.info("factor value: ====>> " + indicator.getFactor());
-                        Double results = (num / denom) * indicator.getFactor();
-
-                        log.info("results value: ====>> " + results);
-                        if (indicator.getIndicatorType() == IndicatorType.NUMBER) {
-
-                            if (results == Double.POSITIVE_INFINITY || results == Double.NEGATIVE_INFINITY) {
-                                reslt.add(0.0);
-                            } else {
-                                reslt.add(results.intValue());
-                            }
-
-                        } else {
-                            reslt.add(results);
-                        }
-
-                    } catch (ArithmeticException ex) {
-                        continue;
-                    }
-
-                    resultListing.add(reslt);
                 }
             }
         }
@@ -582,11 +593,45 @@ public class Aggregator {
         return periods;
     }
 
-    public static void processByOrgUnit(List<List> indicatorsToProcess, String outputFilePath) {
+    public static void processByOrgUnit(List<List<String>> indicatorsToProcess, String outputFilePath) {
+
+        List<String> indicators = new ArrayList();
+        List<String> orgs = new ArrayList();
+        List<String> periods = new ArrayList();
+
+        Map<String, Period> periodMap = null;
+        Map<String, OrgUnit> orgunitMap = null;
+        Map<String, Indicator> indicatorMap = null;
+
+        for (List<String> lst : indicatorsToProcess) {
+            indicators.add(lst.get(0));
+            orgs.add(lst.get(1));
+            periods.add(lst.get(2));
+
+        }
+
+        indicatorMap = getIndicatorsByName(indicators);
+        periodMap = getPeriods(periods);
+        orgunitMap = getOrgUnits(orgs);
+        List<List> resultListing = new ArrayList();
+        for (List<String> lst : indicatorsToProcess) {
+            OrgUnit orgUnit = orgunitMap.get(lst.get(1));
+            Period period = periodMap.get(lst.get(2));
+            Indicator indicator = indicatorMap.get(lst.get(0));
+
+            List calculatedValues = getCalculatedIndicator(indicator, orgUnit, period);
+            if (calculatedValues == null) {
+                continue;
+            } else {
+                resultListing.add(calculatedValues);
+            }
+
+        }
+        Aggregator.saveResultsToCsvFile(resultListing);
 
     }
 
-    public static void processByOrgLevel(List<List> indicatorsToProcess, String outputFilePath) {
+    public static void processByOrgLevel(List<List<String>> indicatorsToProcess, String outputFilePath) {
 
     }
 

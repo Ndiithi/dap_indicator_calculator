@@ -109,7 +109,7 @@ public class Entry {
 
     private static void processIndicatorsFromUserFile(String inputFilePath, String outputFilePath) {
         Reader in = null;
-        List<List> indicatorsToProcess = new ArrayList();
+        List<List<String>> indicatorsToProcess = new ArrayList();
         int csvLineNumber = 1;
         boolean isProcesssByOrgLevel = false;
         try {
