@@ -141,7 +141,7 @@ public class Entry {
                 indicatorsToProcess.add(params);
             }
             if (isProcesssByOrgLevel) {
-                Aggregator.processByOrgUnit(indicatorsToProcess, outputFilePath);
+                Aggregator.processByOrgLevel(indicatorsToProcess, outputFilePath);
             } else {
                 Aggregator.processByOrgUnit(indicatorsToProcess, outputFilePath);
             }

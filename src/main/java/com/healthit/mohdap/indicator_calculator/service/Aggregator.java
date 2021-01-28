@@ -215,6 +215,38 @@ public class Aggregator {
         return indicator;
     }
 
+    private static OrgUnit extractOrgunitFromResultSet(ResultSet rs) throws SQLException {
+
+        OrgUnit orgUnit = new OrgUnit();
+        orgUnit.setId(rs.getInt("organisationunitid"));
+        orgUnit.setName(rs.getString("name"));
+        orgUnit.setParentId(rs.getInt("parentid"));
+        orgUnit.setUuid(rs.getString("uid"));
+
+        switch (rs.getInt("hierarchylevel")) {
+            case 1:
+                orgUnit.setHierarchylevel(OrgLevel.LEVEL_1);
+                break;
+            case 2:
+                orgUnit.setHierarchylevel(OrgLevel.LEVEL_2);
+                break;
+            case 3:
+                orgUnit.setHierarchylevel(OrgLevel.LEVEL_3);
+                break;
+            case 4:
+                orgUnit.setHierarchylevel(OrgLevel.LEVEL_4);
+                break;
+            case 5:
+                orgUnit.setHierarchylevel(OrgLevel.LEVEL_5);
+                break;
+            default:
+                orgUnit.setHierarchylevel(OrgLevel.LEVEL_1);
+                break;
+        }
+
+        return orgUnit;
+    }
+
     /**
      *
      * @param rs
@@ -321,7 +353,7 @@ public class Aggregator {
         return indicators;
     }
 
-    private static List<OrgUnit> getAllOrgUnits() {
+    private static List<OrgUnit> getOrgUnits() {
 
         int orgLevel = 1; //Kenya
         PreparedStatement ps = null;
@@ -330,43 +362,57 @@ public class Aggregator {
         List<OrgUnit> orgunits = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where organisationunitid=23408";
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
-                    OrgUnit orgUnit = new OrgUnit();
-                    orgUnit.setId(rs.getInt("organisationunitid"));
-                    orgUnit.setName(rs.getString("name"));
-                    orgUnit.setParentId(rs.getInt("parentid"));
-                    orgUnit.setUuid(rs.getString("uid"));
-
-                    switch (rs.getInt("hierarchylevel")) {
-                        case 1:
-                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_1);
-                            break;
-                        case 2:
-                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_2);
-                            break;
-                        case 3:
-                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_3);
-                            break;
-                        case 4:
-                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_4);
-                            break;
-                        case 5:
-                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_5);
-                            break;
-                        default:
-                            orgUnit.setHierarchylevel(OrgLevel.LEVEL_1);
-                            break;
-                    }
+                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
                     orgunits.add(orgUnit);
                 }
-
             }
 
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return orgunits;
+
+    }
+
+    private static Map<String, OrgUnit> getOrgUnits(List<String> orgunitNames) {
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        Map<String, OrgUnit> orgunits = null;
+        StringBuilder orgunitNms = new StringBuilder();
+        boolean added = false;
+        for (String name : orgunitNames) {
+            if (added) {
+                orgunitNms.append("," + "'" + name + "'");
+            } else {
+                orgunitNms.append(name);
+                added = true;
+            }
+        }
+
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where name in(?)";
+            ps = conn.prepareStatement(sql);
+            ps.setString(1, orgunitNms.toString());
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs);
+                    orgunits.put(rs.getString("name"), orgUnit);
+                }
+            }
         } catch (SQLException ex) {
             log.error(ex);
         } finally {
@@ -415,7 +461,7 @@ public class Aggregator {
         System.out.println("Processing begins... ");
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
-        List<OrgUnit> orgunits = Aggregator.getAllOrgUnits();
+        List<OrgUnit> orgunits = Aggregator.getOrgUnits();
         List<Period> periods = Aggregator.getAllPeriods();
         List<List> resultListing = new ArrayList();
         for (Indicator indicator : indicators) {
