@@ -6,6 +6,7 @@
 package com.healthit.indicator_calculator.util;
 
 import com.google.gson.Gson;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -44,8 +45,18 @@ public class Stringzz {
     public static Map<String, Boolean> readLastProcessedPoitJson() {
         String processedItemsFile = "./processed_indicators.json";
         Map<String, Boolean> map = null;
+        log.info("reading last process status");
         try {
             Gson gson = new Gson();
+
+            File file = new File(processedItemsFile);
+
+            if (file.createNewFile()) {
+                log.info("File has been created.");
+            } else {
+                log.info("File already exists.");
+            }
+
             Reader reader = Files.newBufferedReader(Paths.get(processedItemsFile));
             map = gson.fromJson(reader, Map.class);
 

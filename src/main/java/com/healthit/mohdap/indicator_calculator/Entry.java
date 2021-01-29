@@ -45,7 +45,7 @@ public class Entry {
 
     static {
         //Declare CLI options
-        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is wither yes/no").
+        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no").
                 addOption("h", "help", false, "Display help information.")
                 .addOption("i", "info", false, "Display app info.")
                 .addOption("in", "input", true, "Used with mode 1. Path of file to use for in CVS format.")

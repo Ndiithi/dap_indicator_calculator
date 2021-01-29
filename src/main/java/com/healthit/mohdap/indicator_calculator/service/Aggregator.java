@@ -54,6 +54,7 @@ public class Aggregator {
     //   + "where de.valuetype in ('NUMBER','INTEGER') ";
 
     private String aggregationTypeSql = "Select aggregationtype from dataelement where uid=?";
+    static Map<String, Boolean> processedValues = null;
 
     /**
      *
@@ -533,6 +534,8 @@ public class Aggregator {
     }
 
     public static void processAllIndicators(boolean proceed) {
+        processedValues = Stringzz.readLastProcessedPoitJson();
+        System.exit(0);
         System.out.println("Processing begins... ");
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
