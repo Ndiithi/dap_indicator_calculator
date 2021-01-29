@@ -24,6 +24,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.log4j.PropertyConfigurator;
 
 /**
  *
@@ -50,6 +51,9 @@ public class Entry {
                 .addOption("in", "input", true, "Path of file to use for in CVS format.")
                 .addOption("out", "output", true, "Location to write csv file of calculated indicators. Ensure app has write privileges.\n"
                         + "If none is given, it output in current app directory");
+    
+        String log4jConfigFile = "./log4j.properties";
+        PropertyConfigurator.configure(log4jConfigFile);
     }
 
     /**
@@ -73,7 +77,7 @@ public class Entry {
             }
 
             if (cmd.hasOption("h")) {
-                System.out.println("\n"+helpString+"\n");
+                System.out.println("\n" + helpString + "\n");
                 HelpFormatter formatter = new HelpFormatter();
                 formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
                 System.exit(0);
@@ -100,7 +104,7 @@ public class Entry {
     }
 
     private static void processIndicatorsFromUserFile(String inputFilePath, String outputFilePath) {
-        log.debug("File location: "+inputFilePath);
+        log.debug("File location: " + inputFilePath);
         Reader in = null;
         List<List<String>> indicatorsToProcess = new ArrayList();
         int csvLineNumber = 1;
