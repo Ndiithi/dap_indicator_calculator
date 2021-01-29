@@ -547,9 +547,14 @@ public class Aggregator {
     public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
         if (proceed) {
             processedValues = Stringzz.readLastProcessedPoitJson();
+            log.info(processedValues);
+                        log.info(processedValues==null);
+                        
             if (processedValues == null) {
                 processedValues = new HashMap<String, Boolean>();
+                log.info(processedValues==null);
             }
+            
         }
 
         log.info("Processing begins... ");
@@ -559,6 +564,7 @@ public class Aggregator {
         List<Period> periods = Aggregator.getPeriods(from_date, to_date);
         List<List> resultListing = new ArrayList();
         int persistCurrentProgressToFileCounter = 0;
+        
         for (Indicator indicator : indicators) {
             log.info("indicator name ===> " + indicator.getName());
             log.info("numerator to evaluate ===> " + indicator.getNumerator());
@@ -590,7 +596,7 @@ public class Aggregator {
                         processedValues.put(mapKey, true);
                         persistCurrentProgressToFileCounter += 1;
                         if (persistCurrentProgressToFileCounter >= 100) {
-                            processedValues = Stringzz.writeLastProcessedPoitJson(processedValues);
+                            processedValues = Stringzz.writeLastProcessedPointsJson(processedValues);
                             persistCurrentProgressToFileCounter = 0;
                         }
                     }
