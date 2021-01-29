@@ -535,6 +535,9 @@ public class Aggregator {
 
     public static void processAllIndicators(boolean proceed) {
         processedValues = Stringzz.readLastProcessedPoitJson();
+        if (processedValues == null) {
+            processedValues = new HashMap<String, Boolean>();
+        }
         System.exit(0);
         System.out.println("Processing begins... ");
 
@@ -554,14 +557,24 @@ public class Aggregator {
             }
 
             for (OrgUnit orgunit : orgunits) {
+                int persistCurrentProgressToFileCounter = 0;
                 for (Period period : periods) {
+                    String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
+                    if (processedValues.containsKey(mapKey)) {
+                        continue;
+                    }
                     List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
                     if (calculatedValues == null) {
                         continue;
                     } else {
                         resultListing.add(calculatedValues);
                     }
-
+                    processedValues.put(mapKey, true);
+                    persistCurrentProgressToFileCounter += 1;
+                    if (persistCurrentProgressToFileCounter >= 20) {
+                        processedValues = Stringzz.writeLastProcessedPoitJson(processedValues);
+                        persistCurrentProgressToFileCounter = 0;
+                    }
                 }
             }
         }
