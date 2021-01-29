@@ -27,3 +27,4 @@ target*
 *calculated_indicators.csv
 nbactions.xml
 database.properties
+processed_indicators.json
