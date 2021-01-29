@@ -6,9 +6,11 @@
 package com.healthit.indicator_calculator.util;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -28,6 +30,8 @@ public class Stringzz {
     final static org.apache.log4j.Logger log
             = org.apache.log4j.Logger.getLogger(Stringzz.class.getCanonicalName());
 
+    private static final String processedItemsFile = "./processed_indicators.json";
+
     public static String buildCommaSeperatedString(List<String> values) {
         StringBuilder commaSeperatedValues = new StringBuilder();
         boolean added = false;
@@ -43,20 +47,16 @@ public class Stringzz {
     }
 
     public static Map<String, Boolean> readLastProcessedPoitJson() {
-        String processedItemsFile = "./processed_indicators.json";
         Map<String, Boolean> map = null;
         log.info("reading last process status");
         try {
             Gson gson = new Gson();
-
             File file = new File(processedItemsFile);
-
             if (file.createNewFile()) {
                 log.info("File has been created.");
             } else {
                 log.info("File already exists.");
             }
-
             Reader reader = Files.newBufferedReader(Paths.get(processedItemsFile));
             map = gson.fromJson(reader, Map.class);
 
@@ -68,5 +68,27 @@ public class Stringzz {
 
         }
         return map;
+    }
+
+    public static Map<String, Boolean> writeLastProcessedPoitJson(Map<String, Boolean> processesValuesMap) {
+
+        FileWriter writer = null;
+        try {
+            GsonBuilder builder = new GsonBuilder();
+            Gson gson = builder.create();
+            writer = new FileWriter(processedItemsFile);
+            writer.write(gson.toJson(processesValuesMap));
+            writer.close();
+            return readLastProcessedPoitJson();
+        } catch (IOException ex) {
+            log.error(ex);
+        } finally {
+            try {
+                writer.close();
+            } catch (IOException ex) {
+                log.error(ex);
+            }
+        }
+        return readLastProcessedPoitJson();
     }
 }
