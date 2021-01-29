@@ -532,7 +532,7 @@ public class Aggregator {
 
     }
 
-    public static void processAllIndicators() {
+    public static void processAllIndicators(boolean proceed) {
         System.out.println("Processing begins... ");
 
         List<Indicator> indicators = Aggregator.getAllIndicators();

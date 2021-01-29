@@ -25,6 +25,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.log4j.PropertyConfigurator;
+import org.json.simple.JSONObject;
 
 /**
  *
@@ -45,13 +46,13 @@ public class Entry {
 
     static {
         //Declare CLI options
-        options.addOption("c", "continue", true, "Will pick processing from where it left off.").
+        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is wither yes/no").
                 addOption("h", "help", false, "Display help information.")
                 .addOption("i", "info", false, "Display app info.")
-                .addOption("in", "input", true, "Path of file to use for in CVS format.")
+                .addOption("in", "input", true, "Used with mode 1. Path of file to use for in CVS format.")
                 .addOption("out", "output", true, "Location to write csv file of calculated indicators. Ensure app has write privileges.\n"
                         + "If none is given, it output in current app directory");
-    
+
         String log4jConfigFile = "./log4j.properties";
         PropertyConfigurator.configure(log4jConfigFile);
     }
@@ -96,7 +97,18 @@ public class Entry {
                 }
             }
 
-            Aggregator.processAllIndicators();
+            boolean proceed = true;
+            if (cmd.hasOption("c")) {
+
+                String cont = cmd.getOptionValue("c");
+                if (cont != null) {
+                    if ("no".contentEquals(cont.trim())) {
+                        proceed = false;
+
+                    }
+                }
+            }
+            Aggregator.processAllIndicators(proceed);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());
