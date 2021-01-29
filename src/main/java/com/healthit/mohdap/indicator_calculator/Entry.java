@@ -45,8 +45,9 @@ public class Entry {
 
     static {
         //Declare CLI options
-        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no").
-                addOption("h", "help", false, "Display help information.")
+        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no")
+                .addOption("from", "from-date", false, "Used on mode 2. if passed, the indicators processing will start from this date. Format (yyyy-mm-dd)")
+                .addOption("h", "help", false, "Display help information.")
                 .addOption("i", "info", false, "Display app info.")
                 .addOption("in", "input", true, "Used with mode 1. Path of file to use for in CVS format.")
                 .addOption("out", "output", true, "Location to write csv file of calculated indicators. Ensure app has write privileges.\n"
@@ -61,7 +62,8 @@ public class Entry {
      */
     public static void main(String[] args) {
         try {
-
+            String outputFilePath = null;
+            String from = null;
             CommandLineParser parser = new DefaultParser();
             CommandLine cmd = parser.parse(options, args);
 
@@ -82,9 +84,13 @@ public class Entry {
                 formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
                 System.exit(0);
             }
-            String outputFilePath = null;
+
             if (cmd.hasOption("out")) {
                 outputFilePath = cmd.getOptionValue("out");
+            }
+
+            if (cmd.hasOption("from")) {
+                outputFilePath = cmd.getOptionValue("from");
             }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
@@ -110,7 +116,7 @@ public class Entry {
                     }
                 }
             }
-            Aggregator.processAllIndicators(proceed,outputFilePath);
+            Aggregator.processAllIndicators(proceed, outputFilePath,from);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());

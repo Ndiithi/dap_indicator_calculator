@@ -451,18 +451,17 @@ public class Aggregator {
      *
      * @param resultListing
      */
-    private static void saveResultsToCsvFile(List<List> resultListing,String outputFilePath) {
+    private static void saveResultsToCsvFile(List<List> resultListing, String outputFilePath) {
         if (resultListing != null) {
             FileWriter out = null;
             String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value"};
             try {
-                
-              
-                if(outputFilePath==null)
-                    out = new FileWriter("./calculated_indicators.csv",true);//true for append
-                else
-                    out = new FileWriter(outputFilePath,true);//true for append
 
+                if (outputFilePath == null) {
+                    out = new FileWriter("./calculated_indicators.csv", true);//true for append
+                } else {
+                    out = new FileWriter(outputFilePath, true);//true for append
+                }
                 try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
                         .withHeader(HEADERS))) {
                     for (List rslt : resultListing) {
@@ -538,7 +537,7 @@ public class Aggregator {
 
     }
 
-    public static void processAllIndicators(boolean proceed,String outputFilePath) {
+    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date) {
         processedValues = Stringzz.readLastProcessedPoitJson();
         if (processedValues == null) {
             processedValues = new HashMap<String, Boolean>();
@@ -547,7 +546,7 @@ public class Aggregator {
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
         List<OrgUnit> orgunits = Aggregator.getOrgUnits();
-        List<Period> periods = Aggregator.getPeriods();
+        List<Period> periods = Aggregator.getPeriods(from_date);
         List<List> resultListing = new ArrayList();
         for (Indicator indicator : indicators) {
             log.info("indicator name ===> " + indicator.getName());
@@ -567,7 +566,7 @@ public class Aggregator {
                     if (processedValues.containsKey(mapKey)) {
                         continue;
                     }
-                    
+
                     List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
                     if (calculatedValues == null) {
                         continue;
@@ -583,11 +582,11 @@ public class Aggregator {
                 }
             }
         }
-        Aggregator.saveResultsToCsvFile(resultListing,outputFilePath);
+        Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
 
     }
 
-    private static List<Period> getPeriods() {
+    private static List<Period> getPeriods(String from_date) {
 
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -595,9 +594,15 @@ public class Aggregator {
         List<Period> periods = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5" ;//startdate='2019-01-01'";// 5 -- monthly
+            String sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5";//startdate='2019-01-01'";// 5 -- monthly
+            if (from_date != null) {
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>?";//startdate='2019-01-01'";// 5 -- monthly
+            }
             ps = conn.prepareStatement(sql);
             log.debug(ps);
+            if (from_date != null) {
+                ps.setString(1, from_date);
+            }
             rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -692,7 +697,7 @@ public class Aggregator {
             }
 
         }
-        Aggregator.saveResultsToCsvFile(resultListing,outputFilePath);
+        Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
 
     }
 
@@ -727,7 +732,7 @@ public class Aggregator {
 
             }
             log.info(resultListing.size());
-            Aggregator.saveResultsToCsvFile(resultListing,outputFilePath);
+            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
         }
 
     }
