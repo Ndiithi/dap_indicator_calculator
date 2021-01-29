@@ -45,8 +45,8 @@ public class Entry {
 
     static {
         //Declare CLI options
-        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no")
-                .addOption("from", "from-date", false, "Used on mode 2. if passed, the indicators processing will start from this date. Format (yyyy-mm-dd)")
+        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no. Note that this option cosumes alot of space during processing.")
+                .addOption("from", "from-date", true, "Used on mode 2. if passed, the indicators processing will start from this date. Format (yyyy-mm-dd)")
                 .addOption("h", "help", false, "Display help information.")
                 .addOption("i", "info", false, "Display app info.")
                 .addOption("in", "input", true, "Used with mode 1. Path of file to use for in CVS format.")
@@ -90,11 +90,11 @@ public class Entry {
             }
 
             if (cmd.hasOption("from")) {
-                outputFilePath = cmd.getOptionValue("from");
+                from = cmd.getOptionValue("from");
+                log.debug("from date: " + from);
             }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
-
                 if (inputFilePath == null) {
                     HelpFormatter formatter = new HelpFormatter();
                     formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
@@ -105,18 +105,18 @@ public class Entry {
                 }
             }
 
-            boolean proceed = true;
+            boolean proceed = false;
             if (cmd.hasOption("c")) {
 
                 String cont = cmd.getOptionValue("c");
                 if (cont != null) {
-                    if ("no".contentEquals(cont.trim())) {
-                        proceed = false;
+                    if ("yes".contentEquals(cont.trim())) {
+                        proceed = true;
 
                     }
                 }
             }
-            Aggregator.processAllIndicators(proceed, outputFilePath,from);
+            Aggregator.processAllIndicators(proceed, outputFilePath, from);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());
@@ -163,13 +163,11 @@ public class Entry {
                 Aggregator.processByOrgUnit(indicatorsToProcess, outputFilePath);
             }
         } catch (FileNotFoundException ex) {
-            log.error(ex);
+            log.error("File not found: " + inputFilePath);
         } catch (java.text.ParseException ex) {
-            log.error(ex);
             log.error("Unable to parse date at row no: " + csvLineNumber);
         } catch (IOException ex) {
-            log.error("Unable to read CSV file");
-            log.error(ex);
+            log.error("Unable to read CSV file, check if correct format");
         } finally {
             try {
                 in.close();

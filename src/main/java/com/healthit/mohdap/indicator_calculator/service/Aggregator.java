@@ -13,17 +13,22 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.swing.text.DateFormatter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.cache2k.Cache;
@@ -328,6 +333,7 @@ public class Aggregator {
             indicators = formatIndicators(rs);
         } catch (SQLException ex) {
             log.error(ex);
+            System.exit(0);
         } finally {
             DatabaseSource.close(rs);
             DatabaseSource.close(ps);
@@ -384,6 +390,7 @@ public class Aggregator {
 
         } catch (SQLException ex) {
             log.error(ex);
+            System.exit(0);
         } finally {
             DatabaseSource.close(rs);
             DatabaseSource.close(ps);
@@ -538,16 +545,20 @@ public class Aggregator {
     }
 
     public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date) {
-        processedValues = Stringzz.readLastProcessedPoitJson();
-        if (processedValues == null) {
-            processedValues = new HashMap<String, Boolean>();
+        if (proceed) {
+            processedValues = Stringzz.readLastProcessedPoitJson();
+            if (processedValues == null) {
+                processedValues = new HashMap<String, Boolean>();
+            }
         }
+
         log.info("Processing begins... ");
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
         List<OrgUnit> orgunits = Aggregator.getOrgUnits();
         List<Period> periods = Aggregator.getPeriods(from_date);
         List<List> resultListing = new ArrayList();
+        int persistCurrentProgressToFileCounter = 0;
         for (Indicator indicator : indicators) {
             log.info("indicator name ===> " + indicator.getName());
             log.info("numerator to evaluate ===> " + indicator.getNumerator());
@@ -560,11 +571,13 @@ public class Aggregator {
             }
 
             for (OrgUnit orgunit : orgunits) {
-                int persistCurrentProgressToFileCounter = 0;
+
                 for (Period period : periods) {
                     String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
-                    if (processedValues.containsKey(mapKey)) {
-                        continue;
+                    if (proceed) {
+                        if (processedValues.containsKey(mapKey)) {
+                            continue;
+                        }
                     }
 
                     List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
@@ -573,12 +586,15 @@ public class Aggregator {
                     } else {
                         resultListing.add(calculatedValues);
                     }
-                    processedValues.put(mapKey, true);
-                    persistCurrentProgressToFileCounter += 1;
-                    if (persistCurrentProgressToFileCounter >= 100) {
-                        processedValues = Stringzz.writeLastProcessedPoitJson(processedValues);
-                        persistCurrentProgressToFileCounter = 0;
+                    if (proceed) {
+                        processedValues.put(mapKey, true);
+                        persistCurrentProgressToFileCounter += 1;
+                        if (persistCurrentProgressToFileCounter >= 100) {
+                            processedValues = Stringzz.writeLastProcessedPoitJson(processedValues);
+                            persistCurrentProgressToFileCounter = 0;
+                        }
                     }
+
                 }
             }
         }
@@ -592,17 +608,20 @@ public class Aggregator {
         ResultSet rs = null;
         Connection conn = null;
         List<Period> periods = new ArrayList();
+        LocalDate l_date = LocalDate.now();
+        Date today = Date.valueOf(l_date);
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5";//startdate='2019-01-01'";// 5 -- monthly
+            String sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate<=CURRENT_DATE";//startdate='2019-01-01'";// 5 -- monthly
             if (from_date != null) {
-                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>?";//startdate='2019-01-01'";// 5 -- monthly
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>? and startdate<=CURRENT_DATE";//startdate='2019-01-01'";// 5 -- monthly
             }
             ps = conn.prepareStatement(sql);
-            log.debug(ps);
+            Date date = Date.valueOf(from_date);
             if (from_date != null) {
-                ps.setString(1, from_date);
+                ps.setDate(1, date);
             }
+            log.debug(ps);
             rs = ps.executeQuery();
 
             while (rs.next()) {
@@ -612,6 +631,7 @@ public class Aggregator {
 
         } catch (SQLException ex) {
             log.error(ex);
+            System.exit(0);
         } finally {
             DatabaseSource.close(rs);
             DatabaseSource.close(ps);
