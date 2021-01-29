@@ -47,6 +47,7 @@ public class Entry {
         //Declare CLI options
         options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no. Note that this option cosumes alot of space during processing.")
                 .addOption("from", "from-date", true, "Used on mode 2. if passed, the indicators processing will start from this date. Format (yyyy-mm-dd)")
+                .addOption("to", "to-date", true, "Used on mode 2. if passed, the indicators processing period will not go beyond this date. Format (yyyy-mm-dd)")
                 .addOption("h", "help", false, "Display help information.")
                 .addOption("i", "info", false, "Display app info.")
                 .addOption("in", "input", true, "Used with mode 1. Path of file to use for in CVS format.")
@@ -63,7 +64,8 @@ public class Entry {
     public static void main(String[] args) {
         try {
             String outputFilePath = null;
-            String from = null;
+            String from_date = null;
+            String to_date = null;
             CommandLineParser parser = new DefaultParser();
             CommandLine cmd = parser.parse(options, args);
 
@@ -90,8 +92,12 @@ public class Entry {
             }
 
             if (cmd.hasOption("from")) {
-                from = cmd.getOptionValue("from");
-                log.debug("from date: " + from);
+                from_date = cmd.getOptionValue("from");
+                log.debug("from date: " + from_date);
+            }
+            if (cmd.hasOption("to")) {
+                to_date = cmd.getOptionValue("to");
+                log.debug("from date: " + to_date);
             }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
@@ -116,7 +122,7 @@ public class Entry {
                     }
                 }
             }
-            Aggregator.processAllIndicators(proceed, outputFilePath, from);
+            Aggregator.processAllIndicators(proceed, outputFilePath, from_date,to_date);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());

@@ -544,7 +544,7 @@ public class Aggregator {
 
     }
 
-    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date) {
+    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
         if (proceed) {
             processedValues = Stringzz.readLastProcessedPoitJson();
             if (processedValues == null) {
@@ -556,7 +556,7 @@ public class Aggregator {
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
         List<OrgUnit> orgunits = Aggregator.getOrgUnits();
-        List<Period> periods = Aggregator.getPeriods(from_date);
+        List<Period> periods = Aggregator.getPeriods(from_date, to_date);
         List<List> resultListing = new ArrayList();
         int persistCurrentProgressToFileCounter = 0;
         for (Indicator indicator : indicators) {
@@ -602,7 +602,7 @@ public class Aggregator {
 
     }
 
-    private static List<Period> getPeriods(String from_date) {
+    private static List<Period> getPeriods(String fromDate, String toDate) {
 
         PreparedStatement ps = null;
         ResultSet rs = null;
@@ -613,14 +613,30 @@ public class Aggregator {
         try {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate<=CURRENT_DATE";//startdate='2019-01-01'";// 5 -- monthly
-            if (from_date != null) {
-                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>? and startdate<=CURRENT_DATE";//startdate='2019-01-01'";// 5 -- monthly
+
+            if (fromDate != null && toDate != null) {
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>? and startdate<=?";
+                ps = conn.prepareStatement(sql);
+                Date frmDate = Date.valueOf(fromDate);
+                Date toDat = Date.valueOf(toDate);
+                ps.setDate(1, frmDate);
+                ps.setDate(2, toDat);
+
+            } else if (fromDate != null) {
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>? and startdate<=CURRENT_DATE";
+                ps = conn.prepareStatement(sql);
+                Date frmDate = Date.valueOf(fromDate);
+                ps.setDate(1, frmDate);
+            } else if (toDate != null) {
+
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate<=?";
+                ps = conn.prepareStatement(sql);
+                Date toDat = Date.valueOf(toDate);
+                ps.setDate(1, toDat);
+            } else {
+                ps = conn.prepareStatement(sql);
             }
-            ps = conn.prepareStatement(sql);
-            Date date = Date.valueOf(from_date);
-            if (from_date != null) {
-                ps.setDate(1, date);
-            }
+
             log.debug(ps);
             rs = ps.executeQuery();
 
