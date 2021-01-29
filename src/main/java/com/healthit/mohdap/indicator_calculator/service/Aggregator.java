@@ -371,7 +371,7 @@ public class Aggregator {
         List<OrgUnit> orgunits = new ArrayList();
         try {
             conn = DatabaseSource.getConnection();
-            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where organisationunitid=18";
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit";// where organisationunitid=18";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
 
