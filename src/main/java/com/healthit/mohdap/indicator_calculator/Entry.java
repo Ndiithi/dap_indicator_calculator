@@ -82,10 +82,13 @@ public class Entry {
                 formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
                 System.exit(0);
             }
-
+            String outputFilePath = null;
+            if (cmd.hasOption("out")) {
+                outputFilePath = cmd.getOptionValue("out");
+            }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
-                String outputFilePath = cmd.getOptionValue("out");
+
                 if (inputFilePath == null) {
                     HelpFormatter formatter = new HelpFormatter();
                     formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
@@ -107,7 +110,7 @@ public class Entry {
                     }
                 }
             }
-            Aggregator.processAllIndicators(proceed);
+            Aggregator.processAllIndicators(proceed,outputFilePath);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());
