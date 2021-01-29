@@ -28,3 +28,4 @@ target*
 nbactions.xml
 database.properties
 processed_indicators.json
+processed_indicators.gzip
