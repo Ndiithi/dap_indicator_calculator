@@ -598,7 +598,7 @@ public class Aggregator {
                         if (persistCurrentProgressToFileCounter >= 100) {
                             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                             resultListing = new ArrayList();
-                            processedValues = Stringzz.writeLastProcessedPointsJson(processedValues);
+                            Stringzz.writeLastProcessedPointsJson(processedValues);
                             persistCurrentProgressToFileCounter = 0;
                         }
                     }

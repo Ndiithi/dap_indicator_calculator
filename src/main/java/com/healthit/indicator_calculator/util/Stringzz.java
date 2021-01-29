@@ -57,24 +57,15 @@ public class Stringzz {
     }
 
     public static Map<String, Boolean> readLastProcessedPoitJson() {
-        return readLastProcessedPoitJson(new ByteArrayOutputStream());
-    }
-
-    private static Map<String, Boolean> readLastProcessedPoitJson(ByteArrayOutputStream bos) {
         Map<String, Boolean> map = null;
         byte[] bytes = null;
 
         try {
             log.info("reading last process status");
-            if (bos != null) {
-                try {
-                    bytes = Files.readAllBytes(Paths.get(compressedProcessedItemsFile));
-                } catch (IOException ex) {
-                    return null;
-                }
-
-            } else {
-                bytes = bos.toByteArray();
+            try {
+                bytes = Files.readAllBytes(Paths.get(compressedProcessedItemsFile));
+            } catch (IOException ex) {
+                return null;
             }
 
             ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
@@ -99,7 +90,7 @@ public class Stringzz {
         return map;
     }
 
-    public static Map<String, Boolean> writeLastProcessedPointsJson(Map<String, Boolean> processesValuesMap) {
+    public static void writeLastProcessedPointsJson(Map<String, Boolean> processesValuesMap) {
         ByteArrayOutputStream byteArrayOutputStream = null;
         GsonBuilder builder = new GsonBuilder();
         Gson gson = builder.create();
@@ -120,7 +111,6 @@ public class Stringzz {
         } catch (IOException e) {
             log.error(e);
         }
-        return readLastProcessedPoitJson(byteArrayOutputStream);
 
     }
 }
