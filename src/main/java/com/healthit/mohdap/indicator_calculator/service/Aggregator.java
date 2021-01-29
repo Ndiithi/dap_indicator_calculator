@@ -596,6 +596,8 @@ public class Aggregator {
                         processedValues.put(mapKey, true);
                         persistCurrentProgressToFileCounter += 1;
                         if (persistCurrentProgressToFileCounter >= 100) {
+                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                            resultListing = new ArrayList();
                             processedValues = Stringzz.writeLastProcessedPointsJson(processedValues);
                             persistCurrentProgressToFileCounter = 0;
                         }
@@ -604,7 +606,7 @@ public class Aggregator {
                 }
             }
         }
-        Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+        
 
     }
 
