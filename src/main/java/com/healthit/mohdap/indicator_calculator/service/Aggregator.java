@@ -703,7 +703,7 @@ public class Aggregator {
             String sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate<=CURRENT_DATE";//startdate='2019-01-01'";// 5 -- monthly
 
             if (fromDate != null && toDate != null) {
-                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>? and startdate<=?";
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>=? and startdate<=?";
                 ps = conn.prepareStatement(sql);
                 Date frmDate = Date.valueOf(fromDate);
                 Date toDat = Date.valueOf(toDate);
@@ -711,7 +711,7 @@ public class Aggregator {
                 ps.setDate(2, toDat);
 
             } else if (fromDate != null) {
-                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>? and startdate<=CURRENT_DATE";
+                sql = "SELECT periodid, startdate, enddate FROM period where periodtypeid =5 and startdate>=? and startdate<=CURRENT_DATE";
                 ps = conn.prepareStatement(sql);
                 Date frmDate = Date.valueOf(fromDate);
                 ps.setDate(1, frmDate);
