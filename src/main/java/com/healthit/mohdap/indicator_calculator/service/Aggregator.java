@@ -2,8 +2,6 @@ package com.healthit.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
 import com.healthit.indicator_calculator.util.Stringzz;
-import com.healthit.mohdap.indicator_calculator.AggregationType;
-import com.healthit.mohdap.indicator_calculator.Entry;
 import com.healthit.mohdap.indicator_calculator.Indicator;
 import com.healthit.mohdap.indicator_calculator.IndicatorType;
 import com.healthit.mohdap.indicator_calculator.OrgLevel;
@@ -508,7 +506,7 @@ public class Aggregator {
         if (resultListing != null) {
             FileWriter out = null;
             String defaultFile = "./calculated_indicators.csv";
-            String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value"};
+            String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value", "Orunit"};
             try {
                 boolean fileExistis = false;
                 if (outputFilePath != null) {
@@ -538,7 +536,7 @@ public class Aggregator {
                     for (List rslt : resultListing) {
                         if (rslt != null) {
                             log.debug(rslt);
-                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
+                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3), rslt.get(4));
                         }
                     }
 
@@ -596,6 +594,7 @@ public class Aggregator {
                 reslt.add(indicator.getName());
                 reslt.add(period.getStartDate());
                 reslt.add(period.getEndDate());
+                reslt.add(orgUnit.getName());
             }
 
         } catch (ArithmeticException ex) {
@@ -656,26 +655,33 @@ public class Aggregator {
                     if (calculatedValues != null) {
                         resultListing.add(calculatedValues);
                     }
+                    persistCurrentProgressToFileCounter += 1;
                     if (proceed) {
                         processedValues.put(mapKey, true);
-                        persistCurrentProgressToFileCounter += 1;
-                        if (persistCurrentProgressToFileCounter >= 10) {
+
+                        if (persistCurrentProgressToFileCounter >= 1000) {
                             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                             resultListing = new ArrayList();
                             Stringzz.writeLastProcessedPointsJson(processedValues);
                             persistCurrentProgressToFileCounter = 0;
                         }
                     } else {
-                        Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                        if (persistCurrentProgressToFileCounter >= 1000) {
+                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                            resultListing = new ArrayList();
+                            persistCurrentProgressToFileCounter = 0;
+                        }
                     }
 
                 }
+                if (resultListing.size() > 0) {
+                    Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                }
+                if (proceed) {
+                    Stringzz.writeLastProcessedPointsJson(processedValues);
+                }
             }
         }
-        if (resultListing.size() > 0) {
-            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
-        }
-
     }
 
     public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
