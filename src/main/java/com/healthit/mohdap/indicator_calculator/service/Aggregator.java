@@ -385,7 +385,7 @@ public class Aggregator {
             ps = conn.prepareStatement(sql);
             log.debug(ps);
             rs = ps.executeQuery();
-            
+
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs, false);
@@ -638,9 +638,7 @@ public class Aggregator {
                     }
 
                     List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
-                    if (calculatedValues == null) {
-                        continue;
-                    } else {
+                    if (calculatedValues != null) {
                         resultListing.add(calculatedValues);
                     }
                     if (proceed) {
