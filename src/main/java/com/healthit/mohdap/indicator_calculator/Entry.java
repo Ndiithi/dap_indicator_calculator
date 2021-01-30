@@ -76,12 +76,6 @@ public class Entry {
                 System.exit(0);
             }
 
-            if (cmd.hasOption("c") && cmd.hasOption("in")) {
-                System.out.println("Cannot run both modes at same time. Choose to either run all indicators\n or give a list of "
-                        + "indicators to run. Run app with -h for help.");
-                System.exit(0);
-            }
-
             if (cmd.hasOption("h")) {
                 System.out.println("\n" + helpString + "\n");
                 HelpFormatter formatter = new HelpFormatter();
@@ -104,8 +98,11 @@ public class Entry {
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
                 if (inputFilePath == null) {
-                    HelpFormatter formatter = new HelpFormatter();
-                    formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
+//                    HelpFormatter formatter = new HelpFormatter();
+//                    formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
+
+                    System.out.println("Your -in parameter is missing file for indicators to calculate. Run app with -h for help.");
+                    log.info("Your -in parameter is missing file for indicators to calculate. Run app with -h for help.");
                     System.exit(0);
                 } else {
                     processIndicatorsFromUserFile(inputFilePath, outputFilePath, cmd);
