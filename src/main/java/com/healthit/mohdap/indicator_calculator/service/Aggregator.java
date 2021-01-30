@@ -60,6 +60,7 @@ public class Aggregator {
 
     private String aggregationTypeSql = "Select aggregationtype from dataelement where uid=?";
     static Map<String, Boolean> processedValues = null;
+    static int persistCurrentProgressToFileCounter = 0; //used when using continue command line param as true;
 
     /**
      *
@@ -277,45 +278,28 @@ public class Aggregator {
      * @param rs
      * @return
      */
-    private static List<Indicator> formatIndicators(ResultSet rs) {
-
-        List<Indicator> indicators = new ArrayList();
-        try {
-
-            while (rs.next()) {
-
-                indicators.add(extractIndicatorFromResultSet(rs));
-            }
-
-        } catch (SQLException ex) {
-            log.error(ex);
-        }
-
-        return indicators;
-
-    }
-
-    /**
-     *
-     * @param rs
-     * @return
-     */
-    private static Map<String, Indicator> formatIndicatorsMap(ResultSet rs) {
+    private static Map<String, Indicator> formatIndicatorsIntoMap(ResultSet rs) throws SQLException {
 
         Map<String, Indicator> result = new HashMap();
-        try {
-            while (rs.next()) {
-                String indicname = rs.getString("name");
-                result.put("'" + indicname.trim() + "'", extractIndicatorFromResultSet(rs));
 
-            }
+        while (rs.next()) {
+            String indicname = rs.getString("name");
+            result.put("'" + indicname.trim() + "'", extractIndicatorFromResultSet(rs));
 
-        } catch (SQLException ex) {
-            log.error(ex);
         }
 
         return result;
 
+    }
+
+    private static List< Indicator> formatIndicatorsIntoList(ResultSet rs) throws SQLException {
+        List<Indicator> result = new ArrayList();
+
+        while (rs.next()) {
+            result.add(extractIndicatorFromResultSet(rs));
+        }
+
+        return result;
     }
 
     private static List<Indicator> getAllIndicators() {
@@ -330,7 +314,7 @@ public class Aggregator {
                     + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid";// where indicatorid=32942";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
-            indicators = formatIndicators(rs);
+            indicators = formatIndicatorsIntoList(rs);
         } catch (SQLException ex) {
             log.error(ex);
             System.exit(0);
@@ -342,24 +326,43 @@ public class Aggregator {
         return indicators;
     }
 
-    private static Map<String, Indicator> getIndicatorsByName(List<String> indicatorsNames) {
+    private static ResultSet getIndicatorByNameResultSetFromDatabase(List<String> indicatorsNames, Connection conn, PreparedStatement ps, ResultSet rs) throws SQLException {
+        conn = DatabaseSource.getConnection();
+        String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
+                + " indicator indc\n"
+                + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where trim(indc.name) in (" + Stringzz.buildCommaSeperatedString(indicatorsNames) + ")";
+        ps = conn.prepareStatement(sql);
+        log.debug(ps);
+        rs = ps.executeQuery();
+        return rs;
+    }
+
+    private static Map<String, Indicator> getIndicatorsMap(List<String> indicatorsNames) {
         PreparedStatement ps = null;
         ResultSet rs = null;
         Connection conn = null;
         Map<String, Indicator> indicators = null;
-        log.debug("comma seperated string for prep stamnt " + Stringzz.buildCommaSeperatedString(indicatorsNames));
         try {
-            conn = DatabaseSource.getConnection();
-            String sql = "SELECT distinct indicatorid, indc.name,indic_tp.indicatorfactor as factor, numerator, denominator, indc.uid,indic_tp.name as type_name from \n"
-                    + " indicator indc\n"
-                    + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid  where trim(indc.name) in (" + Stringzz.buildCommaSeperatedString(indicatorsNames) + ")";
-            ps = conn.prepareStatement(sql);
-            //ps.setString(1, Stringzz.buildCommaSeperatedString(indicatorsNames));
-            log.debug(ps);
-            rs = ps.executeQuery();
+            rs = getIndicatorByNameResultSetFromDatabase(indicatorsNames, conn, ps, rs);
+            indicators = formatIndicatorsIntoMap(rs);
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return indicators;
+    }
 
-            indicators = formatIndicatorsMap(rs);
-
+    private static List<Indicator> getIndicatorsList(List<String> indicatorsNames) {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        List<Indicator> indicators = null;
+        try {
+            rs = getIndicatorByNameResultSetFromDatabase(indicatorsNames, conn, ps, rs);
+            indicators = formatIndicatorsIntoList(rs);
         } catch (SQLException ex) {
             log.error(ex);
         } finally {
@@ -399,6 +402,46 @@ public class Aggregator {
         return orgunits;
     }
 
+    private static List<OrgUnit> getOrgUnits(int orgLevel) {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        Connection conn = null;
+        List<OrgUnit> orgunits = new ArrayList();
+        try {
+            conn = DatabaseSource.getConnection();
+            String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit where hierarchylevel =?";
+            ps = conn.prepareStatement(sql);
+            //ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
+            log.debug("Org sql to run ");
+            log.debug(ps);
+            ps.setInt(1, orgLevel);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                    OrgUnit orgUnit = extractOrgunitFromResultSet(rs, false);
+                    orgunits.add(orgUnit);
+                }
+            }
+        } catch (SQLException ex) {
+            log.error(ex);
+        } finally {
+            DatabaseSource.close(rs);
+            DatabaseSource.close(ps);
+            DatabaseSource.close(conn);
+        }
+        return orgunits;
+    }
+
+    /**
+     * Gets from the database a map of organisation units from the user csv
+     *
+     * @param orgunitNames list of orgnisation unit user names to fetch and
+     * package related data.
+     * @param isByLevel boolean if true, will return map of paren org unit and
+     * the immediate children to process.
+     * @return A map of the Requested orgunti and its attributes, if requested
+     * by org level, value of map will be immediate sub org units
+     */
     private static Map<String, Object> getOrgUnits(List<String> orgunitNames, boolean isByLevel) {
 
         PreparedStatement ps = null;
@@ -564,50 +607,8 @@ public class Aggregator {
         List<Indicator> indicators = Aggregator.getAllIndicators();
         List<OrgUnit> orgunits = Aggregator.getOrgUnits();
         List<Period> periods = Aggregator.getPeriods(from_date, to_date);
-        List<List> resultListing = new ArrayList();
-        int persistCurrentProgressToFileCounter = 0;
 
-        for (Indicator indicator : indicators) {
-            log.info("indicator name ===> " + indicator.getName());
-            log.info("numerator to evaluate ===> " + indicator.getNumerator());
-            log.info("Denominator to evaluate ===> " + indicator.getDenominator());
-            if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
-                continue;
-            }
-            if (indicator.getNumerator().length() == 0 || indicator.getDenominator().length() == 0) {
-                continue;
-            }
-
-            for (OrgUnit orgunit : orgunits) {
-
-                for (Period period : periods) {
-                    String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
-                    if (proceed) {
-                        if (processedValues.containsKey(mapKey)) {
-                            continue;
-                        }
-                    }
-
-                    List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
-                    if (calculatedValues == null) {
-                        continue;
-                    } else {
-                        resultListing.add(calculatedValues);
-                    }
-                    if (proceed) {
-                        processedValues.put(mapKey, true);
-                        persistCurrentProgressToFileCounter += 1;
-                        if (persistCurrentProgressToFileCounter >= 1000) {
-                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
-                            resultListing = new ArrayList();
-                            Stringzz.writeLastProcessedPointsJson(processedValues);
-                            persistCurrentProgressToFileCounter = 0;
-                        }
-                    }
-
-                }
-            }
-        }
+        getAndSaveIndicatorValues(indicators, orgunits, periods, proceed, outputFilePath);
 
     }
 
@@ -699,6 +700,13 @@ public class Aggregator {
         return periods;
     }
 
+    /**
+     * Wraps values passed by user csv in data strucutures for processing.
+     *
+     * @param indicatorsToProcess
+     * @param isByLevel
+     * @return
+     */
     private static Object[] wrapParametersToProcess(List<List<String>> indicatorsToProcess, boolean isByLevel) {
         List<String> indicators = new ArrayList();
         List<String> orgs = new ArrayList();
@@ -711,7 +719,7 @@ public class Aggregator {
 
         }
 
-        Object[] listToReturn = {getIndicatorsByName(indicators), getOrgUnits(orgs, isByLevel), getPeriods(periods)};
+        Object[] listToReturn = {getIndicatorsMap(indicators), getOrgUnits(orgs, isByLevel), getPeriods(periods)};
         return listToReturn;
     }
 
@@ -779,6 +787,75 @@ public class Aggregator {
             log.info(resultListing.size());
             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
         }
+
+    }
+    
+    /**
+     * 
+     * @param indicators indicators to process
+     * @param orgunits orgnuntis  to process
+     * @param periods periods  to process
+     * @param proceed wheather to use continue from last processed feature or not
+     * @param outputFilePath output file
+     */
+    private static void getAndSaveIndicatorValues(
+            List<Indicator> indicators,
+            List<OrgUnit> orgunits,
+            List<Period> periods, boolean proceed,
+            String outputFilePath) {
+        
+        List<List> resultListing = new ArrayList();
+        for (Indicator indicator : indicators) {
+
+            if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
+                continue;
+            }
+            if (indicator.getNumerator().length() == 0 || indicator.getDenominator().length() == 0) {
+                continue;
+            }
+            for (OrgUnit orgunit : orgunits) {
+
+                for (Period period : periods) {
+                    String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
+                    if (proceed) {
+                        if (processedValues.containsKey(mapKey)) {
+                            continue;
+                        }
+                    }
+
+                    List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
+                    if (calculatedValues == null) {
+                        continue;
+                    } else {
+                        resultListing.add(calculatedValues);
+                    }
+                    if (proceed) {
+                        processedValues.put(mapKey, true);
+                        persistCurrentProgressToFileCounter += 1;
+                        if (persistCurrentProgressToFileCounter >= 1000) {
+                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                            resultListing = new ArrayList();
+                            Stringzz.writeLastProcessedPointsJson(processedValues);
+                            persistCurrentProgressToFileCounter = 0;
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+    public static void processByOrgLevel(List<List<String>> indicatorsToProcess, int orgLevel, String fromDate, String toDate, boolean proceed, String outputFilePath) {
+
+        List<String> indicators = new ArrayList();
+        List<Period> periods = getPeriods(fromDate, toDate);
+        List<OrgUnit> orgunits = getOrgUnits(orgLevel);
+        int persistCurrentProgressToFileCounter = 0;
+        for (List<String> lst : indicatorsToProcess) {
+            indicators.add(lst.get(0));
+        }
+        List<Indicator> indics = getIndicatorsList(indicators);
+        getAndSaveIndicatorValues(indics, orgunits, periods, proceed, outputFilePath);
 
     }
 }
