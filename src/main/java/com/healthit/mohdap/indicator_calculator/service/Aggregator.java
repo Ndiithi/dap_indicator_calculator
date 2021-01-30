@@ -571,18 +571,9 @@ public class Aggregator {
             Double results = (num / denom) * indicator.getFactor();
 
             log.info("results value: ====>> " + results);
-            if (indicator.getIndicatorType() == IndicatorType.NUMBER) {
 
-                if (results == Double.POSITIVE_INFINITY || results == Double.NEGATIVE_INFINITY) {
-                    reslt.add(0.0);
-                } else {
-                    reslt.add(results.intValue());
-                }
-
-            } else {
-                if (!Double.isFinite(results) && !Double.isNaN(results)) {
-                    reslt.add(results);
-                }
+            if (!Double.isFinite(results) && !Double.isNaN(results)) {
+                reslt.add(results);
             }
 
         } catch (ArithmeticException ex) {
@@ -610,7 +601,7 @@ public class Aggregator {
 
         if (proceed) {
             processedValues = Stringzz.readLastProcessedPoitJson();
-            log.info(processedValues);
+            log.info("is last processing file empty");
             log.info(processedValues == null);
 
             if (processedValues == null) {
