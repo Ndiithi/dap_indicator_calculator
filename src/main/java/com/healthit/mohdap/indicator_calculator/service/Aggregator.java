@@ -589,7 +589,21 @@ public class Aggregator {
 
     }
 
-    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
+    /**
+     *
+     * @param indicators indicators to process
+     * @param orgunits orgnuntis to process
+     * @param periods periods to process
+     * @param proceed wheather to use continue from last processed feature or
+     * not
+     * @param outputFilePath output file
+     */
+    private static void getAndSaveIndicatorValues(
+            List<Indicator> indicators,
+            List<OrgUnit> orgunits,
+            List<Period> periods, boolean proceed,
+            String outputFilePath) {
+
         if (proceed) {
             processedValues = Stringzz.readLastProcessedPoitJson();
             log.info(processedValues);
@@ -601,6 +615,49 @@ public class Aggregator {
             }
 
         }
+
+        List<List> resultListing = new ArrayList();
+        for (Indicator indicator : indicators) {
+
+            if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
+                continue;
+            }
+            if (indicator.getNumerator().length() == 0 || indicator.getDenominator().length() == 0) {
+                continue;
+            }
+            for (OrgUnit orgunit : orgunits) {
+
+                for (Period period : periods) {
+                    String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
+                    if (proceed) {
+                        if (processedValues.containsKey(mapKey)) {
+                            continue;
+                        }
+                    }
+
+                    List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
+                    if (calculatedValues == null) {
+                        continue;
+                    } else {
+                        resultListing.add(calculatedValues);
+                    }
+                    if (proceed) {
+                        processedValues.put(mapKey, true);
+                        persistCurrentProgressToFileCounter += 1;
+                        if (persistCurrentProgressToFileCounter >= 1000) {
+                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                            resultListing = new ArrayList();
+                            Stringzz.writeLastProcessedPointsJson(processedValues);
+                            persistCurrentProgressToFileCounter = 0;
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
 
         log.info("Processing begins... ");
 
@@ -788,61 +845,6 @@ public class Aggregator {
             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
         }
 
-    }
-    
-    /**
-     * 
-     * @param indicators indicators to process
-     * @param orgunits orgnuntis  to process
-     * @param periods periods  to process
-     * @param proceed wheather to use continue from last processed feature or not
-     * @param outputFilePath output file
-     */
-    private static void getAndSaveIndicatorValues(
-            List<Indicator> indicators,
-            List<OrgUnit> orgunits,
-            List<Period> periods, boolean proceed,
-            String outputFilePath) {
-        
-        List<List> resultListing = new ArrayList();
-        for (Indicator indicator : indicators) {
-
-            if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
-                continue;
-            }
-            if (indicator.getNumerator().length() == 0 || indicator.getDenominator().length() == 0) {
-                continue;
-            }
-            for (OrgUnit orgunit : orgunits) {
-
-                for (Period period : periods) {
-                    String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
-                    if (proceed) {
-                        if (processedValues.containsKey(mapKey)) {
-                            continue;
-                        }
-                    }
-
-                    List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
-                    if (calculatedValues == null) {
-                        continue;
-                    } else {
-                        resultListing.add(calculatedValues);
-                    }
-                    if (proceed) {
-                        processedValues.put(mapKey, true);
-                        persistCurrentProgressToFileCounter += 1;
-                        if (persistCurrentProgressToFileCounter >= 1000) {
-                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
-                            resultListing = new ArrayList();
-                            Stringzz.writeLastProcessedPointsJson(processedValues);
-                            persistCurrentProgressToFileCounter = 0;
-                        }
-                    }
-
-                }
-            }
-        }
     }
 
     public static void processByOrgLevel(List<List<String>> indicatorsToProcess, int orgLevel, String fromDate, String toDate, boolean proceed, String outputFilePath) {

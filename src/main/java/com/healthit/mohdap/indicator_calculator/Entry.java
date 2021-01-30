@@ -14,6 +14,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -39,17 +41,17 @@ public class Entry {
     private static final String helpString = "Indicator caculation module accepts csv file for indicators to process. If none is provided the module reads"
             + " all indicators fro the KHIS db and processes them for all organisation units and periods.\n"
             + "\tThe module operates in two modes:\n"
-            + "\t\t Mode 1. Running specific indicators for a given period and orgunit only.\n"
-            + "\t\t Mode 2. Running all indicators from the KHIS database. This resumes from last stopped preocessing timestamps for each "
-            + "indicator. This is the default mode for the app.";
+            + "\t\t Mode 1. Running specific indicators for a given period and/or orgunit/orglevel only.\n"
+            + "\t\t Mode 2. Running all indicators from the KHIS database. This is the default mode for the app.";
 
     static {
         //Declare CLI options
-        options.addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no. Note that this option cosumes alot of space during processing.")
+        options.addOption("h", "help", false, "Display help information.")
+                .addOption("i", "info", false, "Display app info.")
+                .addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no. Note that this option cosumes alot of space during processing.")
                 .addOption("from", "from-date", true, "Used on mode 2. if passed, the indicators processing will start from this date. Format (yyyy-mm-dd)")
                 .addOption("to", "to-date", true, "Used on mode 2. if passed, the indicators processing period will not go beyond this date. Format (yyyy-mm-dd)")
-                .addOption("h", "help", false, "Display help information.")
-                .addOption("i", "info", false, "Display app info.")
+                .addOption("level", "level", true, "Org level(1,2,3,4,5) to process given indicators from CSV. Active only when csv has indicators column alone.")
                 .addOption("in", "input", true, "Used with mode 1. Path of file to use for in CVS format.")
                 .addOption("out", "output", true, "Location to write csv file of calculated indicators. Ensure app has write privileges.\n"
                         + "If none is given, it output in current app directory");
@@ -64,8 +66,8 @@ public class Entry {
     public static void main(String[] args) {
         try {
             String outputFilePath = null;
-            String from_date = null;
-            String to_date = null;
+            String fromDate = null;
+            String toDate = null;
             CommandLineParser parser = new DefaultParser();
             CommandLine cmd = parser.parse(options, args);
 
@@ -92,12 +94,12 @@ public class Entry {
             }
 
             if (cmd.hasOption("from")) {
-                from_date = cmd.getOptionValue("from");
-                log.debug("from date: " + from_date);
+                fromDate = cmd.getOptionValue("from");
+                log.debug("from date: " + fromDate);
             }
             if (cmd.hasOption("to")) {
-                to_date = cmd.getOptionValue("to");
-                log.debug("from date: " + to_date);
+                toDate = cmd.getOptionValue("to");
+                log.debug("from date: " + toDate);
             }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
@@ -106,7 +108,7 @@ public class Entry {
                     formatter.printHelp("java -jar indicator_calculator.jar [options]", options);
                     System.exit(0);
                 } else {
-                    processIndicatorsFromUserFile(inputFilePath, outputFilePath);
+                    processIndicatorsFromUserFile(inputFilePath, outputFilePath, cmd);
                     System.exit(0);
                 }
             }
@@ -122,30 +124,94 @@ public class Entry {
                     }
                 }
             }
-            Aggregator.processAllIndicators(proceed, outputFilePath, from_date,to_date);
+            Aggregator.processAllIndicators(proceed, outputFilePath, fromDate, toDate);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());
         }
     }
 
-    private static void processIndicatorsFromUserFile(String inputFilePath, String outputFilePath) {
+    private static void processIndicatorsFromUserFile(String inputFilePath, String outputFilePath, CommandLine cmd) {
         log.debug("File location: " + inputFilePath);
         Reader in = null;
-        List<List<String>> indicatorsToProcess = new ArrayList();
-        int csvLineNumber = 1;
+        List<List<String>> indicatorsToProcess = null;
         boolean isProcesssByOrgLevel = false;
+        boolean isProcesssIndicatorsOnly = false;
         try {
             in = new FileReader(inputFilePath);
 
             CSVParser csvParser = CSVFormat.RFC4180.withFirstRecordAsHeader().parse(in);
             Iterable<CSVRecord> records = csvParser;
             List<String> headerNames = csvParser.getHeaderNames();
+            if (!headerNames.contains("indicator")) {
+                log.error("Your csv does not have an indicator column");
+                System.exit(0);
+            }
             if (headerNames.contains("organisation_level")) {
                 isProcesssByOrgLevel = true;
             }
+            if (headerNames.contains("organisation_level") || headerNames.contains("organisation")) {
+                indicatorsToProcess = getValuesByOrgunitsFromCsvFile(records, isProcesssByOrgLevel);
+            } else {
 
-            for (CSVRecord record : records) {
+                indicatorsToProcess = getValuesByIndicatorsOnlysFromCsvFile(records);
+                isProcesssIndicatorsOnly = true;
+            }
+
+            if (isProcesssIndicatorsOnly) {
+                String fromDate = null;
+                String toDate = null;
+                if (!cmd.hasOption("level")) {
+                    System.out.println("Please provide org level to calculate given indicators");
+                    log.info("Please provide org level to calculate given indicators");
+                    System.exit(0);
+                }
+                if (cmd.hasOption("from")) {
+                    fromDate = cmd.getOptionValue("from");
+                    log.debug("from date: " + fromDate);
+                }
+                if (cmd.hasOption("to")) {
+                    toDate = cmd.getOptionValue("to");
+                    log.debug("from date: " + toDate);
+                }
+                boolean proceed = false;
+                if (cmd.hasOption("c")) {
+                    String cont = cmd.getOptionValue("c");
+                    if (cont != null) {
+                        if ("yes".contentEquals(cont.trim())) {
+                            proceed = true;
+                        }
+                    }
+                }
+                int level = Integer.parseInt(cmd.getOptionValue("level"));
+                Aggregator.processByOrgLevel(indicatorsToProcess, level, fromDate, toDate, proceed, outputFilePath);
+            } else {
+
+                if (isProcesssByOrgLevel) {
+                    Aggregator.processByOrgLevel(indicatorsToProcess, outputFilePath);
+                } else {
+                    Aggregator.processByOrgUnit(indicatorsToProcess, outputFilePath);
+                }
+            }
+
+        } catch (FileNotFoundException ex) {
+            log.error("File not found: " + inputFilePath);
+        } catch (IOException ex) {
+            log.error("Unable to read CSV file, check if correct format");
+        } finally {
+            try {
+                in.close();
+            } catch (IOException ex) {
+                log.error(ex);
+            }
+        }
+    }
+
+    private static List<List<String>> getValuesByOrgunitsFromCsvFile(Iterable<CSVRecord> records, boolean isProcesssByOrgLevel) {
+        List<List<String>> indicatorsToProcess = new ArrayList();
+        int csvLineNumber = 1;
+        for (CSVRecord record : records) {
+            try {
                 csvLineNumber += 1;
                 String indicator = record.get("indicator").trim();
                 String organisation;
@@ -162,25 +228,23 @@ public class Entry {
                 params.add(organisation);
                 params.add(period);
                 indicatorsToProcess.add(params);
-            }
-            if (isProcesssByOrgLevel) {
-                Aggregator.processByOrgLevel(indicatorsToProcess, outputFilePath);
-            } else {
-                Aggregator.processByOrgUnit(indicatorsToProcess, outputFilePath);
-            }
-        } catch (FileNotFoundException ex) {
-            log.error("File not found: " + inputFilePath);
-        } catch (java.text.ParseException ex) {
-            log.error("Unable to parse date at row no: " + csvLineNumber);
-        } catch (IOException ex) {
-            log.error("Unable to read CSV file, check if correct format");
-        } finally {
-            try {
-                in.close();
-            } catch (IOException ex) {
-                log.error(ex);
+            } catch (java.text.ParseException ex) {
+                log.error("Unable to parse date at row no: " + csvLineNumber);
+                System.exit(0);
             }
         }
+        return indicatorsToProcess;
+    }
+
+    private static List<List<String>> getValuesByIndicatorsOnlysFromCsvFile(Iterable<CSVRecord> records) {
+        List<List<String>> indicatorsToProcess = new ArrayList();
+        for (CSVRecord record : records) {
+            String indicator = record.get("indicator").trim();
+            List params = new ArrayList();
+            params.add(indicator);
+            indicatorsToProcess.add(params);
+        }
+        return indicatorsToProcess;
     }
 
 }
