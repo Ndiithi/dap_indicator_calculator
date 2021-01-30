@@ -78,7 +78,7 @@ public class Entry {
 
             if (cmd.hasOption("c") && cmd.hasOption("in")) {
                 System.out.println("Cannot run both modes at same time. Choose to either run all indicators\n or give a list of "
-                        + "indicators to run.");
+                        + "indicators to run. Run app with -h for help.");
                 System.exit(0);
             }
 
@@ -144,7 +144,7 @@ public class Entry {
             Iterable<CSVRecord> records = csvParser;
             List<String> headerNames = csvParser.getHeaderNames();
             if (!headerNames.contains("indicator")) {
-                log.error("Your csv does not have an indicator column");
+                log.error("Your csv does not have an indicator column. Run app with -h for help.");
                 System.exit(0);
             }
             if (headerNames.contains("organisation_level")) {
@@ -162,8 +162,8 @@ public class Entry {
                 String fromDate = null;
                 String toDate = null;
                 if (!cmd.hasOption("level")) {
-                    System.out.println("Please provide org level to calculate given indicators");
-                    log.info("Please provide org level to calculate given indicators");
+                    System.out.println("Please provide org level to calculate given indicators. Run app with -h for help.");
+                    log.info("Please provide org level to calculate given indicators. Run app with -h for help.");
                     System.exit(0);
                 }
                 if (cmd.hasOption("from")) {
@@ -197,7 +197,7 @@ public class Entry {
         } catch (FileNotFoundException ex) {
             log.error("File not found: " + inputFilePath);
         } catch (IOException ex) {
-            log.error("Unable to read CSV file, check if correct format");
+            log.error("Unable to read CSV file, check if correct format.  Run app with -h for help.");
         } finally {
             try {
                 in.close();
