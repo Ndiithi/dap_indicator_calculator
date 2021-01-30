@@ -9,6 +9,7 @@ import com.healthit.mohdap.indicator_calculator.IndicatorType;
 import com.healthit.mohdap.indicator_calculator.OrgLevel;
 import com.healthit.mohdap.indicator_calculator.OrgUnit;
 import com.healthit.mohdap.indicator_calculator.Period;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -506,18 +507,37 @@ public class Aggregator {
     private static void saveResultsToCsvFile(List<List> resultListing, String outputFilePath) {
         if (resultListing != null) {
             FileWriter out = null;
+            String defaultFile = "./calculated_indicators.csv";
             String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value"};
             try {
+                boolean fileExistis = false;
+                if (outputFilePath != null) {
+                    File f = new File(outputFilePath);
+                    if (f.exists() && !f.isDirectory()) {
+                        fileExistis = true;
+                    }
+                } else {
+                    File f = new File(defaultFile);
+                    if (f.exists() && !f.isDirectory()) {
+                        fileExistis = true;
+                    }
+                }
 
                 if (outputFilePath == null) {
-                    out = new FileWriter("./calculated_indicators.csv", true);//true for append
+                    out = new FileWriter(defaultFile, true);//true for append
                 } else {
                     out = new FileWriter(outputFilePath, true);//true for append
                 }
-                try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
-                        .withHeader(HEADERS))) {
+                CSVFormat format = null;
+                if (fileExistis) {
+                    format = CSVFormat.DEFAULT;
+                } else {
+                    format = CSVFormat.DEFAULT.withHeader(HEADERS);
+                }
+                try (CSVPrinter printer = new CSVPrinter(out, format)) {
                     for (List rslt : resultListing) {
                         if (rslt != null) {
+                            log.debug(rslt);
                             printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
                         }
                     }
@@ -549,10 +569,8 @@ public class Aggregator {
 
         log.info("period: ====>> " + period.getStartDate());
 
-        List reslt = new ArrayList();
-        reslt.add(indicator.getName());
-        reslt.add(period.getStartDate());
-        reslt.add(period.getEndDate());
+        List reslt = null;
+
         try {
 
             if (numeratorResult.toString().contains("Infinity")
@@ -572,8 +590,12 @@ public class Aggregator {
 
             log.info("results value: ====>> " + results);
 
-            if (!Double.isFinite(results) && !Double.isNaN(results)) {
+            if (!Double.isNaN(results) && results != Double.POSITIVE_INFINITY && results != Double.NEGATIVE_INFINITY) {
+                reslt = new ArrayList();
                 reslt.add(results);
+                reslt.add(indicator.getName());
+                reslt.add(period.getStartDate());
+                reslt.add(period.getEndDate());
             }
 
         } catch (ArithmeticException ex) {
@@ -637,7 +659,7 @@ public class Aggregator {
                     if (proceed) {
                         processedValues.put(mapKey, true);
                         persistCurrentProgressToFileCounter += 1;
-                        if (persistCurrentProgressToFileCounter >= 1000) {
+                        if (persistCurrentProgressToFileCounter >= 10) {
                             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                             resultListing = new ArrayList();
                             Stringzz.writeLastProcessedPointsJson(processedValues);
