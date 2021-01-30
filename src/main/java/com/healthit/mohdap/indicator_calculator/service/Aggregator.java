@@ -533,7 +533,9 @@ public class Aggregator {
                 }
 
             } else {
-                reslt.add(results);
+                if (!Double.isFinite(results) && !Double.isNaN(results)) {
+                    reslt.add(results);
+                }
             }
 
         } catch (ArithmeticException ex) {
@@ -548,13 +550,13 @@ public class Aggregator {
         if (proceed) {
             processedValues = Stringzz.readLastProcessedPoitJson();
             log.info(processedValues);
-                        log.info(processedValues==null);
-                        
+            log.info(processedValues == null);
+
             if (processedValues == null) {
                 processedValues = new HashMap<String, Boolean>();
-                log.info(processedValues==null);
+                log.info(processedValues == null);
             }
-            
+
         }
 
         log.info("Processing begins... ");
@@ -564,7 +566,7 @@ public class Aggregator {
         List<Period> periods = Aggregator.getPeriods(from_date, to_date);
         List<List> resultListing = new ArrayList();
         int persistCurrentProgressToFileCounter = 0;
-        
+
         for (Indicator indicator : indicators) {
             log.info("indicator name ===> " + indicator.getName());
             log.info("numerator to evaluate ===> " + indicator.getNumerator());
@@ -595,7 +597,7 @@ public class Aggregator {
                     if (proceed) {
                         processedValues.put(mapKey, true);
                         persistCurrentProgressToFileCounter += 1;
-                        if (persistCurrentProgressToFileCounter >= 100) {
+                        if (persistCurrentProgressToFileCounter >= 1000) {
                             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                             resultListing = new ArrayList();
                             Stringzz.writeLastProcessedPointsJson(processedValues);
@@ -606,7 +608,6 @@ public class Aggregator {
                 }
             }
         }
-        
 
     }
 
