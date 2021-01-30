@@ -665,11 +665,17 @@ public class Aggregator {
                             Stringzz.writeLastProcessedPointsJson(processedValues);
                             persistCurrentProgressToFileCounter = 0;
                         }
+                    } else {
+                        Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                     }
 
                 }
             }
         }
+        if (resultListing.size() > 0) {
+            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+        }
+
     }
 
     public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
