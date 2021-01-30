@@ -314,6 +314,7 @@ public class Aggregator {
                     + " inner join indicatortype indic_tp on indc.indicatortypeid=indic_tp.indicatortypeid";// where indicatorid=32942";
             ps = conn.prepareStatement(sql);
             rs = ps.executeQuery();
+            log.debug(ps);
             indicators = formatIndicatorsIntoList(rs);
         } catch (SQLException ex) {
             log.error(ex);
@@ -382,8 +383,9 @@ public class Aggregator {
             conn = DatabaseSource.getConnection();
             String sql = "SELECT organisationunitid, \"name\", parentid, uid, hierarchylevel FROM public.organisationunit";// where organisationunitid=18";
             ps = conn.prepareStatement(sql);
+            log.debug(ps);
             rs = ps.executeQuery();
-
+            
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs, false);
@@ -413,8 +415,8 @@ public class Aggregator {
             ps = conn.prepareStatement(sql);
             //ps.setString(1, Stringzz.buildCommaSeperatedString(orgunitNames));
             log.debug("Org sql to run ");
-            log.debug(ps);
             ps.setInt(1, orgLevel);
+            log.debug(ps);
             rs = ps.executeQuery();
             while (rs.next()) {
                 if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
