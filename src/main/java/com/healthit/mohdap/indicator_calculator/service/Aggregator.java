@@ -517,7 +517,9 @@ public class Aggregator {
                 try (CSVPrinter printer = new CSVPrinter(out, CSVFormat.DEFAULT
                         .withHeader(HEADERS))) {
                     for (List rslt : resultListing) {
-                        printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
+                        if (rslt != null) {
+                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3));
+                        }
                     }
 
                 }
