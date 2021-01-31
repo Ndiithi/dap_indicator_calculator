@@ -1,9 +1,3 @@
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![GPL-3.0 License ][license-shield]][license-url]
-
-
 <!-- TABLE OF CONTENTS -->
 <details open="open">
   <summary>Table of Contents</summary>
@@ -19,11 +13,7 @@
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
   </ol>
 </details>
 
@@ -126,15 +116,15 @@ eg CSV file with indicaotor column only, process the indicators for orglevel 1 f
 
 #### Defaults.
 By default for the cammand line arguments are:
--c true. strores progress in the root app folder with the name processed_indicators.gzip. If processed_indicators.gzip is deleted, the processing starts from begging.
--from: all dates.
--to: current date.
--out: the root folder of the app jar file, with the name calculated_indicators.csv
--level: all levels.
--in: if none is given, processes all the KHIS indicators.
+* -c true. strores progress in the root app folder with the name processed_indicators.gzip. If processed_indicators.gzip is deleted, the processing starts from begging.
+* -from: all dates.
+* -to: current date.
+* -out: the root folder of the app jar file, with the name calculated_indicators.csv
+* -level: all levels.
+* -in: if none is given, processes all the KHIS indicators.
 
 
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the GPL-3.0 License. See `LICENSE` for more information.
