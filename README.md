@@ -57,12 +57,11 @@ Clone and install dhis2-antlr-expression-parser.
 
 1. Clone the repo
    ```sh
-   https://github.com/uonafya/dap_indicator_calculator.git
+   git clone https://github.com/uonafya/dap_indicator_calculator.git
    ```
 2. Change directory.
    ```sh
    cd dap_indicator_calculator
-   mvn package
    ```
 3. Compile the package
    ```sh
