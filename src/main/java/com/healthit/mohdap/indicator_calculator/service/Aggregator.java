@@ -633,8 +633,9 @@ public class Aggregator {
         }
 
         List<List> resultListing = new ArrayList();
+        log.debug("Starting indicator calculation processing");
         for (Indicator indicator : indicators) {
-
+            
             if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
                 continue;
             }
@@ -642,13 +643,15 @@ public class Aggregator {
                 continue;
             }
             for (OrgUnit orgunit : orgunits) {
-
+                boolean addToFile=false;
                 for (Period period : periods) {
                     String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
                     if (proceed) {
                         if (processedValues.containsKey(mapKey)) {
+                            log.debug("Skipping processed indicator "+mapKey);
                             continue;
                         }
+                        addToFile=true;
                     }
 
                     List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
@@ -672,12 +675,12 @@ public class Aggregator {
                             persistCurrentProgressToFileCounter = 0;
                         }
                     }
-
+                    log.debug("Processing  "+mapKey);
                 }
                 if (resultListing.size() > 0) {
                     Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                 }
-                if (proceed) {
+                if (proceed && addToFile) {
                     Stringzz.writeLastProcessedPointsJson(processedValues);
                 }
             }
