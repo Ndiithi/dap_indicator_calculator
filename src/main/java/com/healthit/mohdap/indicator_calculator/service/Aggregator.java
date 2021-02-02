@@ -386,7 +386,7 @@ public class Aggregator {
             rs = ps.executeQuery();
 
             while (rs.next()) {
-                if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                if (rs.getInt("hierarchylevel") <= 5) {//process facility orgunit and upwards only
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs, false);
                     orgunits.add(orgUnit);
                 }
@@ -418,7 +418,7 @@ public class Aggregator {
             log.debug(ps);
             rs = ps.executeQuery();
             while (rs.next()) {
-                if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                if (rs.getInt("hierarchylevel") <= 5) {//process facility orgunit and upwards only
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs, false);
                     orgunits.add(orgUnit);
                 }
@@ -465,7 +465,7 @@ public class Aggregator {
             log.debug(ps);
             rs = ps.executeQuery();
             while (rs.next()) {
-                if (rs.getInt("hierarchylevel") < 5) {//process facility orgunit and upwards only
+                if (rs.getInt("hierarchylevel") <= 5) {//process facility orgunit and upwards only
                     OrgUnit orgUnit = extractOrgunitFromResultSet(rs, isByLevel);
                     if (isByLevel) {
                         String pName = "'" + rs.getString("parent_name").trim() + "'";
@@ -503,10 +503,11 @@ public class Aggregator {
      * @param resultListing
      */
     private static void saveResultsToCsvFile(List<List> resultListing, String outputFilePath) {
+        log.debug(" Save results to file");
         if (resultListing != null) {
             FileWriter out = null;
             String defaultFile = "./calculated_indicators.csv";
-            String[] HEADERS = {"Indicator", "Start_date", "End_date", "Value", "Orunit"};
+            String[] HEADERS = {"Indicator", "Indicator_id", "Start_date", "Period_id", "Orunit","Orunit_id", "Value"};
             try {
                 boolean fileExistis = false;
                 if (outputFilePath != null) {
@@ -533,10 +534,12 @@ public class Aggregator {
                     format = CSVFormat.DEFAULT.withHeader(HEADERS);
                 }
                 try (CSVPrinter printer = new CSVPrinter(out, format)) {
+                    int recordSavedCounter = 0;
                     for (List rslt : resultListing) {
                         if (rslt != null) {
-                            log.debug(rslt);
-                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3), rslt.get(4));
+                            recordSavedCounter += 1;
+                            log.debug(rslt + " Record no:. " + recordSavedCounter);
+                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3), rslt.get(4), rslt.get(5), rslt.get(6));
                         }
                     }
 
@@ -590,11 +593,14 @@ public class Aggregator {
 
             if (!Double.isNaN(results) && results != Double.POSITIVE_INFINITY && results != Double.NEGATIVE_INFINITY) {
                 reslt = new ArrayList();
-                reslt.add(results);
                 reslt.add(indicator.getName());
+                reslt.add(indicator.getId());
                 reslt.add(period.getStartDate());
-                reslt.add(period.getEndDate());
+                reslt.add(period.getId());
                 reslt.add(orgUnit.getName());
+                reslt.add(orgUnit.getId());
+                reslt.add(results);
+                //"Indicator", "Indicator_id", "Start_date", "Period_id", "Orunit","Orunit_id", "Value"
             }
 
         } catch (ArithmeticException ex) {
@@ -635,7 +641,6 @@ public class Aggregator {
         List<List> resultListing = new ArrayList();
         log.debug("Starting indicator calculation processing");
         for (Indicator indicator : indicators) {
-            
             if (indicator.getNumerator() == null || indicator.getDenominator() == null) {
                 continue;
             }
@@ -643,15 +648,13 @@ public class Aggregator {
                 continue;
             }
             for (OrgUnit orgunit : orgunits) {
-                boolean addToFile=false;
                 for (Period period : periods) {
                     String mapKey = indicator.getUuid() + "_" + orgunit.getUuid() + "_" + period.getId();
                     if (proceed) {
                         if (processedValues.containsKey(mapKey)) {
-                            log.debug("Skipping processed indicator "+mapKey);
+                            log.debug("Skipping processed indicator " + mapKey);
                             continue;
                         }
-                        addToFile=true;
                     }
 
                     List calculatedValues = getCalculatedIndicator(indicator, orgunit, period);
@@ -660,12 +663,16 @@ public class Aggregator {
                     }
                     persistCurrentProgressToFileCounter += 1;
                     if (proceed) {
+                        log.debug("save key to map");
                         processedValues.put(mapKey, true);
-
+                        log.debug(" key saved");
                         if (persistCurrentProgressToFileCounter >= 1000) {
-                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
-                            resultListing = new ArrayList();
                             Stringzz.writeLastProcessedPointsJson(processedValues);
+                            //processedValues = null;
+                            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+                            //processedValues = Stringzz.readLastProcessedPoitJson();
+                            resultListing = new ArrayList();
+
                             persistCurrentProgressToFileCounter = 0;
                         }
                     } else {
@@ -675,24 +682,30 @@ public class Aggregator {
                             persistCurrentProgressToFileCounter = 0;
                         }
                     }
-                    log.debug("Processing  "+mapKey);
-                }
-                if (resultListing.size() > 0) {
-                    Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
-                }
-                if (proceed && addToFile) {
-                    Stringzz.writeLastProcessedPointsJson(processedValues);
+                    log.debug("Processing  " + mapKey);
                 }
             }
         }
+        //save unsaved data
+        if (resultListing.size() > 0) {
+            Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
+        }
+        if (proceed && persistCurrentProgressToFileCounter > 0) {
+            Stringzz.writeLastProcessedPointsJson(processedValues);
+        }
     }
 
-    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date) {
+    public static void processAllIndicators(boolean proceed, String outputFilePath, String from_date, String to_date, int orgLevel) {
 
         log.info("Processing begins... ");
 
         List<Indicator> indicators = Aggregator.getAllIndicators();
-        List<OrgUnit> orgunits = Aggregator.getOrgUnits();
+        List<OrgUnit> orgunits;
+        if (orgLevel != 0) {
+            orgunits = Aggregator.getOrgUnits(orgLevel);
+        } else {
+            orgunits = Aggregator.getOrgUnits();
+        }
         List<Period> periods = Aggregator.getPeriods(from_date, to_date);
 
         getAndSaveIndicatorValues(indicators, orgunits, periods, proceed, outputFilePath);

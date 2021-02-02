@@ -68,6 +68,7 @@ public class Entry {
             String outputFilePath = null;
             String fromDate = null;
             String toDate = null;
+            int orgLevel = 0;
             CommandLineParser parser = new DefaultParser();
             CommandLine cmd = parser.parse(options, args);
 
@@ -95,6 +96,9 @@ public class Entry {
                 toDate = cmd.getOptionValue("to");
                 log.debug("from date: " + toDate);
             }
+            if (cmd.hasOption("level")) {
+                   orgLevel = Integer.parseInt(cmd.getOptionValue("level"));
+                }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
                 if (inputFilePath == null) {
@@ -121,7 +125,7 @@ public class Entry {
                     }
                 }
             }
-            Aggregator.processAllIndicators(proceed, outputFilePath, fromDate, toDate);
+            Aggregator.processAllIndicators(proceed, outputFilePath, fromDate, toDate, orgLevel);
 
         } catch (ParseException ex) {
             System.out.println(ex.getMessage());

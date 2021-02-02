@@ -25,6 +25,7 @@ hs_err_pid*
 
 target*
 *calculated_indicators.csv
+*calculated_indicators*.csv
 nbactions.xml
 database.properties
 processed_indicators.json
