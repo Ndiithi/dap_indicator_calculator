@@ -507,7 +507,7 @@ public class Aggregator {
         if (resultListing != null) {
             FileWriter out = null;
             String defaultFile = "./calculated_indicators.csv";
-            String[] HEADERS = {"Indicator", "Indicator_id", "Start_date", "Period_id", "Orunit","Orunit_id", "Value"};
+            String[] HEADERS = {"Indicator", "Indicator_id", "Start_date","End_date", "Period_id", "Orunit","Orunit_id", "Value"};
             try {
                 boolean fileExistis = false;
                 if (outputFilePath != null) {
@@ -539,7 +539,7 @@ public class Aggregator {
                         if (rslt != null) {
                             recordSavedCounter += 1;
                             log.debug(rslt + " Record no:. " + recordSavedCounter);
-                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3), rslt.get(4), rslt.get(5), rslt.get(6));
+                            printer.printRecord(rslt.get(0), rslt.get(1), rslt.get(2), rslt.get(3), rslt.get(4), rslt.get(5), rslt.get(6),rslt.get(7));
                         }
                     }
 
@@ -596,6 +596,7 @@ public class Aggregator {
                 reslt.add(indicator.getName());
                 reslt.add(indicator.getId());
                 reslt.add(period.getStartDate());
+                reslt.add(period.getEndDate());
                 reslt.add(period.getId());
                 reslt.add(orgUnit.getName());
                 reslt.add(orgUnit.getId());
