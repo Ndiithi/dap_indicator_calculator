@@ -69,6 +69,20 @@ Clone and install dhis2-antlr-expression-parser.
    ```
 Compile jar file is placed in the target directory.   
 
+## Datbase connection
+
+Create a file on the root folder of the app with the name "database.properties" which will contain the followin properties:
+
+#database settings
+
+
+  ```sh
+  driver.class.name=org.postgresql.Driver
+  db.url=jdbc:postgresql://khis_db_host:port/database_name
+  db.username=username
+  db.password=password
+  ```
+
 ## Usage
 
 To print help info run:
