@@ -14,7 +14,7 @@ import static org.hisp.dhis.parser.expression.antlr.ExpressionParser.*;
  * Common traversal of the ANTLR4 expression parse tree using the visitor
  * pattern.
  *
- * @author Jim Grace
+ * @author Duncan Ndiithi, @Attribute Jim Grace
  */
 public class CommonExpressionVisitor extends AntlrExpressionVisitor {
 
