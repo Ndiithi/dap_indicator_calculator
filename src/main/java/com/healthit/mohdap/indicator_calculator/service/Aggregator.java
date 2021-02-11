@@ -1,6 +1,7 @@
 package com.healthit.mohdap.indicator_calculator.service;
 
 import com.healthit.indicator_calculator.util.DatabaseSource;
+import com.healthit.indicator_calculator.util.DefaultSetting;
 import com.healthit.indicator_calculator.util.Stringzz;
 import com.healthit.mohdap.indicator_calculator.Indicator;
 import com.healthit.mohdap.indicator_calculator.IndicatorType;
@@ -669,7 +670,7 @@ public class Aggregator {
                         log.debug("save key to map");
                         processedValues.put(mapKey, true);
                         log.debug(" key saved");
-                        if (persistCurrentProgressToFileCounter >= 1000) {
+                        if (persistCurrentProgressToFileCounter >= DefaultSetting.counterBeforeSaving) {
                             Stringzz.writeLastProcessedPointsJson(processedValues);
                             //processedValues = null;
                             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
@@ -679,7 +680,7 @@ public class Aggregator {
                             persistCurrentProgressToFileCounter = 0;
                         }
                     } else {
-                        if (persistCurrentProgressToFileCounter >= 1000) {
+                        if (persistCurrentProgressToFileCounter >= DefaultSetting.counterBeforeSaving) {
                             Aggregator.saveResultsToCsvFile(resultListing, outputFilePath);
                             resultListing = new ArrayList();
                             persistCurrentProgressToFileCounter = 0;
