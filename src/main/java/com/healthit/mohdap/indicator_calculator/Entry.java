@@ -5,6 +5,7 @@
  */
 package com.healthit.mohdap.indicator_calculator;
 
+import com.healthit.indicator_calculator.util.DefaultSetting;
 import com.healthit.mohdap.indicator_calculator.service.Aggregator;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -49,6 +50,7 @@ public class Entry {
         options.addOption("h", "help", false, "Display help information.")
                 .addOption("i", "info", false, "Display app info.")
                 .addOption("c", "continue", true, "Used on mode 2. Will pick processing from where it left off. Input is either yes/no. Note that this option cosumes alot of space during processing.")
+                .addOption("counter", "counter", true, "If the continue parameter is 'yes', this parameter specifies how long before persisting progress to file")
                 .addOption("from", "from-date", true, "Used on mode 2. if passed, the indicators processing will start from this date. Format (yyyy-mm-dd)")
                 .addOption("to", "to-date", true, "Used on mode 2. if passed, the indicators processing period will not go beyond this date. Format (yyyy-mm-dd)")
                 .addOption("level", "level", true, "Org level(1,2,3,4,5) to process given indicators from CSV. Active only when csv has indicators column alone.")
@@ -96,9 +98,16 @@ public class Entry {
                 toDate = cmd.getOptionValue("to");
                 log.debug("from date: " + toDate);
             }
-            if (cmd.hasOption("level")) {
-                   orgLevel = Integer.parseInt(cmd.getOptionValue("level"));
+            if (cmd.hasOption("counter")) {
+                try {
+                    DefaultSetting.counterBeforeSaving = Integer.parseInt(cmd.getOptionValue("counter"));
+                } catch (NumberFormatException ne) {
+                    log.error("The coutner parameter must be a numner");
                 }
+            }
+            if (cmd.hasOption("level")) {
+                orgLevel = Integer.parseInt(cmd.getOptionValue("level"));
+            }
             if (cmd.hasOption("in")) {
                 String inputFilePath = cmd.getOptionValue("in");
                 if (inputFilePath == null) {
